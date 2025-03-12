@@ -83,7 +83,7 @@ foreach (['extensions', 'skins'] as $type) {
                 } elseif ($step === "git submodule update") {
                     $submoduleUpdateCmd = "cd $MW_HOME/$type/$name && git submodule update --init";
                     exec($submoduleUpdateCmd);
-                } elseif ($step === "db update") {
+                } elseif ($step === "database update") {
                     $updateNeeded = true;
                     $extensionsToEnable[] = $name;
                 }
