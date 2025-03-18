@@ -93,7 +93,7 @@ foreach (['extensions', 'skins'] as $type) {
 }
 
 if ( $updateNeeded && !empty( $extensionsToEnable ) ) {
-    $extensionsFile = "$MW_HOME/extensions-temp.php";
+    $extensionsFile = "$MW_VOLUME/config/settings/extensions-temp.php";
 
     // Generate a temporary PHP file to enable extensions
     $extensionCode = "<?php\n";
