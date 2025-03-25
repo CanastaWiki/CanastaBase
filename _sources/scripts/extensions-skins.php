@@ -93,7 +93,7 @@ foreach (['extensions', 'skins'] as $type) {
 }
 
 if ( $updateNeeded && !empty( $extensionsToEnable ) ) {
-    $extensionsFile = getenv("MW_HOME") . "/extensions-temp.php";
+    $extensionsFile = getenv("MW_HOME") . "/temp-extension-setup.php";
 
     // Generate a temporary PHP file to enable extensions
     $extensionCode = "<?php\n";

@@ -117,7 +117,7 @@ if ( $filenames !== false && is_array( $filenames ) ) {
 	}
 }
 
-require_once getenv( 'MW_HOME' ) . '/extensions-temp.php';
+require_once getenv( 'MW_HOME' ) . '/temp-extension-setup.php';
 
 # Include the FarmConfig
 if ( file_exists( getenv( 'MW_VOLUME' ) . '/config/wikis.yaml' ) ) {
