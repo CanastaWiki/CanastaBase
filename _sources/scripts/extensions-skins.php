@@ -104,9 +104,6 @@ if ( $updateNeeded && !empty( $extensionsToEnable ) ) {
 
     // Run update.php with extensions enabled
     exec( "MW_SETUP_MODE=true php $MW_HOME/maintenance/update.php" );
-
-    // Remove temporary extensions file to disable them
-    unlink($extensionsFile);
 }
 
 /**
