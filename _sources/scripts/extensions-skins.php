@@ -93,7 +93,7 @@ foreach (['extensions', 'skins'] as $type) {
 }
 
 if ( $updateNeeded && !empty( $extensionsToEnable ) ) {
-    $extensionsFile = "$MW_VOLUME/config/settings/extensions-temp.php";
+    $extensionsFile = getenv("MW_HOME") . "/temp-extension-setup.php";
 
     // Generate a temporary PHP file to enable extensions
     $extensionCode = "<?php\n";
@@ -104,9 +104,6 @@ if ( $updateNeeded && !empty( $extensionsToEnable ) ) {
 
     // Run update.php with extensions enabled
     exec( "MW_SETUP_MODE=true php $MW_HOME/maintenance/update.php" );
-
-    // Remove temporary extensions file to disable them
-    unlink($extensionsFile);
 }
 
 /**
