@@ -41,10 +41,11 @@ foreach (['extensions', 'skins'] as $type) {
         $persistentDirectories = $data['persistent directories'] ?? null;
         $additionalSteps = $data['additional steps'] ?? null;
         $bundled = $data['bundled'] ?? false;
+        $requires = $data['requires extension'] ?? null;
 
         if ($persistentDirectories !== null) {
             exec("mkdir -p $MW_ORIGIN_FILES/canasta-$type/$name");
-            foreach ($directory as $persistentDirectories) {
+            foreach ($persistentDirectories as $directory) {
                 exec("mv $MW_HOME/canasta-$type/$name/$directory $MW_ORIGIN_FILES/canasta-$type/$name/");
                 exec("ln -s $MW_VOLUME/canasta-$type/$name/$directory $MW_HOME/canasta-$type/$name/$directory");
             }
@@ -85,6 +86,13 @@ foreach (['extensions', 'skins'] as $type) {
                     exec($submoduleUpdateCmd);
                 } elseif ($step === "database update") {
                     $updateNeeded = true;
+                    if ($requires !== null) {
+                        foreach ($requires as $require){
+                            if (!in_array($require, $extensionsToEnable, true)) {
+                                $extensionsToEnable[] = $require;
+                            }
+                        }
+                    }
                     $extensionsToEnable[] = $name;
                 }
             }
