@@ -41,7 +41,7 @@ foreach (['extensions', 'skins'] as $type) {
         $persistentDirectories = $data['persistent directories'] ?? null;
         $additionalSteps = $data['additional steps'] ?? null;
         $bundled = $data['bundled'] ?? false;
-        $requires = $data['requires extension'] ?? null;
+        $requiredExtensions = $data['required extensions'] ?? null;
 
         if ($persistentDirectories !== null) {
             exec("mkdir -p $MW_ORIGIN_FILES/canasta-$type/$name");
@@ -86,10 +86,10 @@ foreach (['extensions', 'skins'] as $type) {
                     exec($submoduleUpdateCmd);
                 } elseif ($step === "database update") {
                     $updateNeeded = true;
-                    if ($requires !== null) {
-                        foreach ($requires as $require){
-                            if (!in_array($require, $extensionsToEnable, true)) {
-                                $extensionsToEnable[] = $require;
+                    if ($requiredExtensions !== null) {
+                        foreach ($requiredExtensions as $ext){
+                            if (!in_array($ext, $extensionsToEnable, true)) {
+                                $extensionsToEnable[] = $ext;
                             }
                         }
                     }
