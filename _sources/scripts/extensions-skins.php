@@ -15,7 +15,6 @@ $MW_VERSION = getenv("MW_VERSION");
 $MW_VOLUME = getenv("MW_VOLUME");
 $MW_ORIGIN_FILES = getenv("MW_ORIGIN_FILES");
 $path = $argv[1];
-$updateNeeded = false;
 $extensionsToEnable = [];
 
 $contentsData = [
@@ -85,7 +84,6 @@ foreach (['extensions', 'skins'] as $type) {
                     $submoduleUpdateCmd = "cd $MW_HOME/$type/$name && git submodule update --init";
                     exec($submoduleUpdateCmd);
                 } elseif ($step === "database update") {
-                    $updateNeeded = true;
                     if ($requiredExtensions !== null) {
                         foreach ($requiredExtensions as $ext){
                             if (!in_array($ext, $extensionsToEnable, true)) {
@@ -100,19 +98,17 @@ foreach (['extensions', 'skins'] as $type) {
     }
 }
 
-if ( $updateNeeded && !empty( $extensionsToEnable ) ) {
-    $extensionsFile = getenv("MW_HOME") . "/temp-extension-setup.php";
+$extensionsFile = getenv("MW_HOME") . "/temp-extension-setup.php";
 
-    // Generate a temporary PHP file to enable extensions
-    $extensionCode = "<?php\n";
-    foreach ( $extensionsToEnable as $ext ) {
-        $extensionCode .= "wfLoadExtension('$ext');\n";
-    }
-    file_put_contents( $extensionsFile, $extensionCode );
-
-    // Run update.php with extensions enabled
-    exec( "MW_SETUP_MODE=true php $MW_HOME/maintenance/update.php" );
+// Generate a temporary PHP file to enable extensions
+$extensionCode = "<?php\n";
+foreach ( $extensionsToEnable as $ext ) {
+    $extensionCode .= "wfLoadExtension('$ext');\n";
 }
+file_put_contents( $extensionsFile, $extensionCode );
+
+// Run update.php with extensions enabled
+exec( "MW_SETUP_MODE=true php $MW_HOME/maintenance/update.php" );
 
 /**
  * Recursive function to allow for loading a whole chain of YAML files (if
