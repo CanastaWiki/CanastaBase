@@ -40,7 +40,6 @@ wfImageAuthMain();
 $mediawiki = new MediaWiki();
 $mediawiki->doPostOutputShutdown();
 
-
 function wfImageAuthMain() {
 	global $wgImgAuthUrlPathMap, $wgScriptPath, $wgImgAuthPath, $wikiID;
 
