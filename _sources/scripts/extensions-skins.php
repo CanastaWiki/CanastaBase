@@ -41,6 +41,14 @@ foreach (['extensions', 'skins'] as $type) {
         $bundled = $data['bundled'] ?? false;
         $requiredExtensions = $data['required extensions'] ?? null;
 
+        // SMW is recommending installation using their composer package
+        if ($name === 'SemanticMediaWiki') {
+            $packageName = $data['composer-name'];
+            $packageVersion = $data['composer-version'];
+            exec("COMPOSER_HOME=$MW_HOME composer require $packageName:$packageVersion --no-interaction");
+            continue;
+        }
+
         if ($persistentDirectories !== null) {
             exec("mkdir -p $MW_ORIGIN_FILES/canasta-$type/$name");
             foreach ($persistentDirectories as $directory) {
