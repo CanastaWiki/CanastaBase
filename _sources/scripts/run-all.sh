@@ -125,7 +125,7 @@ make_dir_writable "$MW_VOLUME" -not '(' -path "$MW_VOLUME/images" -prune ')'
 # Running php-fpm
 /run-php-fpm.sh &
 
-echo "root: $LOCAL_SMTP_EMAIL" >> /etc/aliases
+echo "root: $LOCAL_SMTP_USERNAME" >> /etc/aliases
 echo "$LOCAL_SMTP_MAILNAME" >> /etc/mailname
 echo "[$LOCAL_SMTP_DOMAIN]:$LOCAL_SMTP_PORT $LOCAL_SMTP_USERNAME:$LOCAL_SMTP_PASSWORD" >> /etc/postfix/sasl_passwd
 chmod 0600 /etc/postfix/sasl_passwd
