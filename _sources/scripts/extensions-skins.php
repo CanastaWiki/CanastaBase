@@ -69,8 +69,8 @@ foreach (['extensions', 'skins'] as $type) {
                 }
             }
 
-            $gitCloneCmd .= "$repository $MW_HOME/$type/$name";
-            $gitCheckoutCmd = "cd $MW_HOME/$type/$name && git checkout -q $commit";
+            $gitCloneCmd .= "$repository $MW_HOME/canasta-$type/$name";
+            $gitCheckoutCmd = "cd $MW_HOME/canasta-$type/$name && git checkout -q $commit";
 
             exec($gitCloneCmd);
             exec($gitCheckoutCmd);
@@ -78,7 +78,7 @@ foreach (['extensions', 'skins'] as $type) {
 
         if ($patches !== null) {
             foreach ($patches as $patch) {
-                $gitApplyCmd = "cd $MW_HOME/$type/$name && git apply /tmp/$patch";
+                $gitApplyCmd = "cd $MW_HOME/canasta-$type/$name && git apply /tmp/$patch";
                 exec($gitApplyCmd);
             }
         }
@@ -86,10 +86,10 @@ foreach (['extensions', 'skins'] as $type) {
         if ($additionalSteps !== null) {
             foreach ($additionalSteps as $step) {
                 if ($step === "composer update") {
-                    $composerInstallCmd = "composer install --working-dir=$MW_HOME/$type/$name --no-interaction --no-dev";
+                    $composerInstallCmd = "composer install --working-dir=$MW_HOME/canasta-$type/$name --no-interaction --no-dev";
                     shell_exec("$composerInstallCmd");
                 } elseif ($step === "git submodule update") {
-                    $submoduleUpdateCmd = "cd $MW_HOME/$type/$name && git submodule update --init";
+                    $submoduleUpdateCmd = "cd $MW_HOME/canasta-$type/$name && git submodule update --init";
                     exec($submoduleUpdateCmd);
                 }
             }
