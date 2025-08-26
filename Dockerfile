@@ -153,7 +153,11 @@ RUN set -x; \
 # Create place where extensions and skins symlinks will live
 RUN set -x; \
     mkdir $MW_HOME/extensions/ \
-    && mkdir $MW_HOME/skins/
+    && mkdir $MW_HOME/skins/ \
+	&& chown $WWW_USER:$WWW_GROUP -R $MW_HOME/extensions \
+    && chmod g+w -R $MW_HOME/extensions \
+	&& chown $WWW_USER:$WWW_GROUP -R $MW_HOME/skins \
+    && chmod g+w -R $MW_HOME/skins
 
 FROM base AS final
 
