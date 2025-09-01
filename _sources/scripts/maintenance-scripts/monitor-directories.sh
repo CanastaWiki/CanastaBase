@@ -21,7 +21,12 @@ inotifywait -m -e create,moved_to,delete,moved_from --format '%e:%f' -- "$userex
         ln -sfn -- "$userexts/$file" "$extensions/$file" ;;
       DELETE,ISDIR|MOVED_FROM,ISDIR)
         echo "event: ${event} file: ${file}";
-        ln -sfn -- "$canexts/$file" "$extensions/$file" || rm -f -- "$extensions/$file" ;
+        if [ -e "$canexts/$file" ]; then
+          ln -sfn -- "$canexts/$file" "$extensions/$file"
+        else
+          rm -f -- "$extensions/$file"
+        fi
+        ;;
     esac
   done
 
@@ -32,6 +37,12 @@ inotifywait -m -e create,moved_to,delete,moved_from --format '%e:%f' -- "$usersk
         ln -sfn -- "$userskins/$file" "$skins/$file" ;;
       DELETE,ISDIR|MOVED_FROM,ISDIR)
         echo "event: ${event} file: ${file}";
-        ln -sfn -- "$canskins/$file" "$skins/$file" || rm -f -- "$skins/$file" ;
+        if [ -e "$canskins/$file" ]; then
+          ln -sfn -- "$canskins/$file" "$skins/$file"
+        else
+          rm -f -- "$skins/$file"
+        fi
+        ;;
+
     esac
   done
