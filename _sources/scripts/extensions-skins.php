@@ -74,6 +74,10 @@ foreach (['extensions', 'skins'] as $type) {
 
             exec($gitCloneCmd);
             exec($gitCheckoutCmd);
+
+            // Remove .git directory, to reduce the size of the Docker image - the Canasta
+            // build cannot happen without such a reduction.
+            exec("rm -rf \.git");
         }
 
         if ($patches !== null) {
