@@ -42,7 +42,7 @@ foreach (['extensions', 'skins'] as $type) {
         $requiredExtensions = $data['required extensions'] ?? null;
 
         // Installation of extensions using their composer package (for SMW, etc.,)
-        if ($data['composer-name']) {
+        if ($data['composer-name'] ?? null) {
             $packageName = $data['composer-name'];
             $packageVersion = $data['composer-version'] ?? null;
             $packageString = $packageVersion ? "$packageName:$packageVersion" : $packageName;
