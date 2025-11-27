@@ -14,8 +14,8 @@ ENV MW_VERSION=REL1_43 \
     WWW_GROUP=www-data \
     APACHE_LOG_DIR=/var/log/apache2
 
-LABEL org.canasta.mediawiki.version="$MW_CORE_VERSION" \
-      org.canasta.mediawiki.branch="$MW_VERSION"
+LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
+      wiki.canasta.mediawiki.branch="$MW_VERSION"
 
 # System setup
 RUN set x; \
