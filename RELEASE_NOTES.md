@@ -6,3 +6,4 @@ CanastaBase version history:
 - 1.0.3 - September 3, 2025 - Fixes for the creation of extension/skin symlinks; removed the setting of $wgJobRunRate to 0; added 404 response for nonexistent URLs; renamed mail variables for consistency; added X-Forwarded-For information to log files
 - 1.0.4 - October 3, 2025 - Upgrade to MediaWiki 1.43.4
 - 1.0.5 - October 8, 2025 - Upgrade to MediaWiki 1.43.5
+- 1.0.6 - November 27, 2025 - Added OCI labels exposing the bundled MediaWiki version and branch for easier image introspection
