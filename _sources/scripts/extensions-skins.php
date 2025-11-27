@@ -59,7 +59,7 @@ foreach (['extensions', 'skins'] as $type) {
         }
 
         if (!$bundled) {
-            $gitCloneCmd = "git clone ";
+            $gitCloneCmd = "git clone --depth 1 ";
 
             if ($repository === null) {
                 $repository = "https://github.com/wikimedia/mediawiki-$type-$name";
