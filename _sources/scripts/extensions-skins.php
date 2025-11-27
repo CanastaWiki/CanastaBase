@@ -3,7 +3,7 @@
 /**
  * It is much easier to do parsing of YAML in PHP than in .sh; the standard way
  * to do YAML parsing in a shell script is to call yq, but yq requires
- * different executables for different architectures. 
+ * different executables for different architectures.
  *
  * Given that the YAML parsing is already in PHP, we do all the rest of the
  * installation in PHP too: Git download, Composer updates, applying patches,
@@ -57,9 +57,9 @@ foreach (['extensions', 'skins'] as $type) {
                 exec("ln -s $MW_VOLUME/canasta-$type/$name/$directory $MW_HOME/canasta-$type/$name/$directory");
             }
         }
- 
+
         if (!$bundled) {
-            $gitCloneCmd = "git clone ";
+            $gitCloneCmd = "git clone --depth 1 ";
 
             if ($repository === null) {
                 $repository = "https://github.com/wikimedia/mediawiki-$type-$name";
@@ -70,14 +70,12 @@ foreach (['extensions', 'skins'] as $type) {
             }
 
             $gitCloneCmd .= "$repository $MW_HOME/canasta-$type/$name";
-            $gitCheckoutCmd = "cd $MW_HOME/canasta-$type/$name && git checkout -q $commit";
+            // Remove .git directory, to reduce the size of the Docker image - the Canasta
+            // build cannot happen without such a reduction.
+            $gitCheckoutCmd = "cd $MW_HOME/canasta-$type/$name && git checkout -q $commit && rm -rf .git";
 
             exec($gitCloneCmd);
             exec($gitCheckoutCmd);
-
-            // Remove .git directory, to reduce the size of the Docker image - the Canasta
-            // build cannot happen without such a reduction.
-            exec("rm -rf \.git");
         }
 
         if ($patches !== null) {
