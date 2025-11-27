@@ -59,7 +59,7 @@ foreach (['extensions', 'skins'] as $type) {
         }
 
         if (!$bundled) {
-            $gitCloneCmd = "git clone --depth 1 ";
+            $gitCloneCmd = "git clone ";
 
             if ($repository === null) {
                 $repository = "https://github.com/wikimedia/mediawiki-$type-$name";
@@ -70,9 +70,7 @@ foreach (['extensions', 'skins'] as $type) {
             }
 
             $gitCloneCmd .= "$repository $MW_HOME/canasta-$type/$name";
-            // Remove .git directory, to reduce the size of the Docker image - the Canasta
-            // build cannot happen without such a reduction.
-            $gitCheckoutCmd = "cd $MW_HOME/canasta-$type/$name && git checkout -q $commit && rm -rf .git";
+            $gitCheckoutCmd = "cd $MW_HOME/canasta-$type/$name && git checkout -q $commit";
 
             exec($gitCloneCmd);
             exec($gitCheckoutCmd);
@@ -96,6 +94,9 @@ foreach (['extensions', 'skins'] as $type) {
                 }
             }
         }
+
+        // Remove .git directory after all git operations are complete, to reduce the size of the Docker image
+        exec("rm -rf $MW_HOME/canasta-$type/$name/.git");
     }
 }
 
