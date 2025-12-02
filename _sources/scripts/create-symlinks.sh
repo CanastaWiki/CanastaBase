@@ -1,8 +1,5 @@
 #!/bin/bash
 
-rm -f "$MW_HOME"/extensions/*
-rm -f "$MW_HOME"/skins/*
-
 echo "Symlinking bundled extensions..."
 for bundled_extension_path in $(find $MW_HOME/canasta-extensions/ -maxdepth 1 -mindepth 1 -type d)
 do
@@ -18,14 +15,14 @@ do
 done
 
 echo "Symlinking user extensions and overwriting any redundant bundled extensions..."
-for user_extension_path in $(find $MW_HOME/user-extensions/ -maxdepth 1 -mindepth 1 -type d)
+for user_extension_path in $(find $MW_HOME/user-extensions/ -maxdepth 1 -mindepth 1 \( -type d -o -type l \))
 do
   user_extension_id=$(basename $user_extension_path)
   ln -sf $MW_HOME/user-extensions/$user_extension_id/ $MW_HOME/extensions/$user_extension_id
 done
 
 echo "Symlinking user skins and overwriting any redundant bundled skins..."
-for user_skin_path in $(find $MW_HOME/user-skins/ -maxdepth 1 -mindepth 1 -type d)
+for user_skin_path in $(find $MW_HOME/user-skins/ -maxdepth 1 -mindepth 1 \( -type d -o -type l \))
 do
   user_skin_id=$(basename $user_skin_path)
   ln -sf $MW_HOME/user-skins/$user_skin_id/ $MW_HOME/skins/$user_skin_id
