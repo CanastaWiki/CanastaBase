@@ -51,8 +51,6 @@ if [ -f "$MW_VOLUME/config/wikis.yaml" ]; then
     done
 else
     # wikis.yaml file does not exist. Skip parsing and running specific wiki jobs.
-    echo "Warning: wikis.yaml does not exist. Running general jobs."
-    
     # Place your general (non-wiki-specific) job run commands here.
     php $RJ --type="enotifNotify"
     sleep 1
