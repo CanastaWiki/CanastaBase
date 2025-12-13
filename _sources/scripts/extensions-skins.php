@@ -50,13 +50,6 @@ foreach (['extensions', 'skins'] as $type) {
             continue;
         }
 
-        if ($persistentDirectories !== null) {
-            exec("mkdir -p $MW_ORIGIN_FILES/canasta-$type/$name");
-            foreach ($persistentDirectories as $directory) {
-                exec("mv $MW_HOME/canasta-$type/$name/$directory $MW_ORIGIN_FILES/canasta-$type/$name/");
-                exec("ln -s $MW_VOLUME/canasta-$type/$name/$directory $MW_HOME/canasta-$type/$name/$directory");
-            }
-        }
 
         if (!$bundled) {
             $gitCloneCmd = "git clone ";
@@ -97,6 +90,14 @@ foreach (['extensions', 'skins'] as $type) {
 
         // Remove .git directory after all git operations are complete, to reduce the size of the Docker image
         exec("rm -rf $MW_HOME/canasta-$type/$name/.git");
+
+        if ($persistentDirectories !== null) {
+            exec("mkdir -p $MW_ORIGIN_FILES/$type/$name");
+            foreach ($persistentDirectories as $directory) {
+                exec("mv $MW_HOME/canasta-$type/$name/$directory $MW_ORIGIN_FILES/$type/$name/");
+                exec("ln -s $MW_VOLUME/$type/$name/$directory $MW_HOME/canasta-$type/$name/$directory");
+            }
+        }
     }
 }
 
