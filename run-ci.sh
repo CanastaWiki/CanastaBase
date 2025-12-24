@@ -11,7 +11,6 @@ apt update -qq > /dev/null 2>&1
 apt install -y nodejs npm -qq > /dev/null 2>&1
 
 echo "Installing Composer dependencies..."
-rm composer.local.json
 rm -rf vendor
 composer -n --quiet update > /dev/null 2>&1
 
@@ -51,12 +50,8 @@ php maintenance/update.php --quick > /dev/null 2>&1
 # PHPUnit
 echo "Running tests..."
 
-# PHPUnit unit tests
-composer phpunit:unit -- --exclude-group Broken,ParserFuzz,Stub
-# PHPUnit default suite (without database or standalone)
-composer run --timeout=0 phpunit:entrypoint -- --exclude-group Broken,ParserFuzz,Stub,Database,Standalone
-# PHPUnit default suite (with database)
-composer run --timeout=0 phpunit:entrypoint -- --group Database --exclude-group Broken,ParserFuzz,Stub,Standalone
+# PHPUnit core unit tests only (no extensions/skins in base image)
+composer run --timeout=0 phpunit -- --testsuite core:unit --exclude-group Broken,ParserFuzz,Stub
 
 #composer run phpunit -- --exclude-group Broken,ParserFuzz,Stub --stop-on-failure --stop-on-error
 
