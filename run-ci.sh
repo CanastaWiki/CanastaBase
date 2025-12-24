@@ -39,8 +39,6 @@ echo '$wgDevelopmentWarnings = false;' >> LocalSettings.php
 echo '$wgObjectCaches["redis"] = [ "class" => "RedisBagOStuff", "servers" => [ "host.docker.internal:6379" ] ];' >> LocalSettings.php
 echo '$wgMainCacheType = "redis";' >> LocalSettings.php
 echo '$wgSessionCacheType = "redis";' >> LocalSettings.php
-echo '$wgExtensionDirectory = "/tmp/empty-extensions";' >> LocalSettings.php
-echo '$wgStyleDirectory = "/tmp/empty-skins";' >> LocalSettings.php
 echo '$wgPhpCli = "/usr/bin/php";' >> LocalSettings.php
 
 echo "Running database updates..."
@@ -53,7 +51,18 @@ php maintenance/update.php --quick > /dev/null 2>&1
 echo "Running tests..."
 
 # PHPUnit core unit tests only (no extensions/skins in base image)
+# Temporarily replace getPHPUnitExtensionsAndSkins.php to return empty list
+mv tests/phpunit/getPHPUnitExtensionsAndSkins.php tests/phpunit/getPHPUnitExtensionsAndSkins.php.bak 2>/dev/null || true
+echo '#!/usr/bin/env php
+<?php
+echo "\n\nTESTPATHS\n\n";
+?>' > tests/phpunit/getPHPUnitExtensionsAndSkins.php
+chmod +x tests/phpunit/getPHPUnitExtensionsAndSkins.php
+
 composer run --timeout=0 phpunit -- --testsuite core:unit --exclude-group Broken,ParserFuzz,Stub
+
+# Restore original script
+mv tests/phpunit/getPHPUnitExtensionsAndSkins.php.bak tests/phpunit/getPHPUnitExtensionsAndSkins.php 2>/dev/null || true
 
 #composer run phpunit -- --exclude-group Broken,ParserFuzz,Stub --stop-on-failure --stop-on-error
 
