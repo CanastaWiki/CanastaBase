@@ -70,6 +70,7 @@ RUN set x; \
 	php8.1-fpm \
 	php8.1-yaml \
 	php8.1-ldap \
+	php8.1-bcmath \
 	libapache2-mod-fcgid \
 	&& aptitude clean \
 	&& rm -rf /var/lib/apt/lists/*
@@ -104,7 +105,7 @@ RUN set -x; \
     && echo "postfix postfix/mailname string $LOCAL_SMTP_MAILNAME" | debconf-set-selections \
 	&& apt-get update \
 	&& apt-get install -y mailutils \
-	&& apt install -y postfix 
+	&& apt install -y postfix
 
 COPY main.cf /etc/postfix/main.cf
 
@@ -212,7 +213,7 @@ COPY _sources/configs/.htaccess $WWW_ROOT/
 COPY _sources/images/favicon.ico $WWW_ROOT/
 COPY _sources/canasta/LocalSettings.php _sources/canasta/CanastaUtils.php _sources/canasta/CanastaDefaultSettings.php _sources/canasta/FarmConfigLoader.php $MW_HOME/
 COPY _sources/canasta/getMediawikiSettings.php /
-COPY _sources/canasta/canasta_img.php $MW_HOME/ 
+COPY _sources/canasta/canasta_img.php $MW_HOME/
 COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 
 RUN set -x; \
