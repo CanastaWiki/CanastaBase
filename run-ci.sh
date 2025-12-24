@@ -39,6 +39,8 @@ echo '$wgDevelopmentWarnings = false;' >> LocalSettings.php
 echo '$wgObjectCaches["redis"] = [ "class" => "RedisBagOStuff", "servers" => [ "host.docker.internal:6379" ] ];' >> LocalSettings.php
 echo '$wgMainCacheType = "redis";' >> LocalSettings.php
 echo '$wgSessionCacheType = "redis";' >> LocalSettings.php
+echo '$wgExtensionDirectory = "/tmp/empty-extensions";' >> LocalSettings.php
+echo '$wgStyleDirectory = "/tmp/empty-skins";' >> LocalSettings.php
 echo '$wgPhpCli = "/usr/bin/php";' >> LocalSettings.php
 
 echo "Running database updates..."
