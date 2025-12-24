@@ -59,10 +59,23 @@ echo "\n\nTESTPATHS\n\n";
 ?>' > tests/phpunit/getPHPUnitExtensionsAndSkins.php
 chmod +x tests/phpunit/getPHPUnitExtensionsAndSkins.php
 
-composer run --timeout=0 phpunit -- --testsuite core:unit --exclude-group Broken,ParserFuzz,Stub
+# PHPUnit unit tests
+composer phpunit:unit -- --exclude-group Broken,ParserFuzz,Stub
+phpunit_exit=$?
+
+# PHPUnit default suite (without database or standalone)
+composer run --timeout=0 phpunit:entrypoint -- --exclude-group Broken,ParserFuzz,Stub,Database,Standalone
+phpunit_exit=$((phpunit_exit || $?))
+
+# PHPUnit default suite (with database)
+composer run --timeout=0 phpunit:entrypoint -- --group Database --exclude-group Broken,ParserFuzz,Stub,Standalone
+phpunit_exit=$((phpunit_exit || $?))
 
 # Restore original script
 mv tests/phpunit/getPHPUnitExtensionsAndSkins.php.bak tests/phpunit/getPHPUnitExtensionsAndSkins.php 2>/dev/null || true
+
+# Exit with combined PHPUnit exit code
+exit $phpunit_exit
 
 #composer run phpunit -- --exclude-group Broken,ParserFuzz,Stub --stop-on-failure --stop-on-error
 
