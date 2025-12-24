@@ -61,7 +61,7 @@ chmod +x tests/phpunit/getPHPUnitExtensionsAndSkins.php
 
 # PHPUnit unit tests
 # Exclude testConstruct_notReadable - fails in Docker/root environments where file permissions aren't enforced
-composer phpunit:unit -- --exclude-group Broken,ParserFuzz,Stub --filter '!testConstruct_notReadable'
+composer phpunit:unit -- --exclude-group Broken,ParserFuzz,Stub --filter '/^(?!.*testConstruct_notReadable).*$/'
 phpunit_exit=$?
 
 # PHPUnit default suite (without database or standalone)
