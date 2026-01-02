@@ -40,12 +40,14 @@ if [ -f "$MW_VOLUME/config/wikis.yaml" ]; then
     done
 else
     echo "Warning: wikis.yaml does not exist. Starting the general transcoder."
-    php $RJ --type=webVideoTranscodePrioritized --maxjobs=10
-    sleep 1
-    php $RJ --type=webVideoTranscode --maxjobs=1
-    # Wait some seconds to let the CPU do other things, like handling web requests, etc
-    echo mwtranscoder waits for "$MW_JOB_TRANSCODER_PAUSE" seconds...
-    sleep "$MW_JOB_TRANSCODER_PAUSE"
+    while true; do
+        php $RJ --type=webVideoTranscodePrioritized --maxjobs=10
+        sleep 1
+        php $RJ --type=webVideoTranscode --maxjobs=1
+        # Wait some seconds to let the CPU do other things, like handling web requests, etc
+        echo mwtranscoder waits for "$MW_JOB_TRANSCODER_PAUSE" seconds...
+        sleep "$MW_JOB_TRANSCODER_PAUSE"
+    done
 fi
 
 # Wait for all background jobs to finish

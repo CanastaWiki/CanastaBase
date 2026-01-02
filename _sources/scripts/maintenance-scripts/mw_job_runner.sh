@@ -52,15 +52,20 @@ if [ -f "$MW_VOLUME/config/wikis.yaml" ]; then
 else
     # wikis.yaml file does not exist. Skip parsing and running specific wiki jobs.
     # Place your general (non-wiki-specific) job run commands here.
-    php $RJ --type="enotifNotify"
-    sleep 1
-    php $RJ --type="createPage"
-    sleep 1
-    php $RJ --type="refreshLinks"
-    sleep 1
-    php $RJ --type="htmlCacheUpdate" --maxjobs=500
-    sleep 1
-    php $RJ --maxjobs=10
+    while true; do
+        php $RJ --type="enotifNotify"
+        sleep 1
+        php $RJ --type="createPage"
+        sleep 1
+        php $RJ --type="refreshLinks"
+        sleep 1
+        php $RJ --type="htmlCacheUpdate" --maxjobs=500
+        sleep 1
+        php $RJ --maxjobs=10
+        # Wait some seconds to let the CPU do other things, like handling web requests, etc
+        echo mwjobrunner waits for "$MW_JOB_RUNNER_PAUSE" seconds...
+        sleep "$MW_JOB_RUNNER_PAUSE"
+    done
 fi
 
 # Wait for all background jobs to finish
