@@ -35,7 +35,12 @@ waitdatabase() {
 
     if isFalse "$USE_EXTERNAL_DB"; then
       echo >&2 "Waiting for database to start"
-      /wait-for-it.sh -t 86400 "$WG_DB_SERVER"
+      if [[ "$WG_DB_SERVER" == *:* ]]; then
+       DB_SERVER_WITH_PORT="$WG_DB_SERVER"
+      else
+        DB_SERVER_WITH_PORT="$WG_DB_SERVER:3306"
+      fi
+      /wait-for-it.sh -t 86400 "$DB_SERVER_WITH_PORT"
   
       mysql=( mysql -h "$WG_DB_SERVER" -u"$WG_DB_USER" -p"$WG_DB_PASSWORD" )
   
