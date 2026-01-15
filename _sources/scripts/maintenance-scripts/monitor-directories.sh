@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -x
 
+# Disable directory monitoring
+if [ $DISABLE_DIRECTORY_MONITOR == true ]; then
+  echo "Directory monitoring is disabled via DISABLE_DIRECTORY_MONITOR"
+  exit 0
+fi
+
 userexts="$MW_HOME/user-extensions"
 extensions="$MW_HOME/extensions"
 canexts="$MW_HOME/canasta-extensions"
