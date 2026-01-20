@@ -26,6 +26,10 @@ if ( $urlComponents === false ) {
 // Extract the server name (host) from the URL
 if ( isset( $urlComponents['host'] ) ) {
 	$serverName = $urlComponents['host'];
+	// Include port if present
+	if ( isset( $urlComponents['port'] ) ) {
+		$serverName .= ':' . $urlComponents['port'];
+	}
 }
 
 // Extract the path from the URL, if any
