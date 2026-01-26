@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Use relative symlinks so they work both inside the container and when
+# code is extracted to the host for development/debugging
+
 echo "Symlinking bundled extensions..."
 for bundled_extension_path in $(find $MW_HOME/canasta-extensions/ -maxdepth 1 -mindepth 1 -type d)
 do
@@ -9,7 +12,7 @@ do
   if [ -d "$target" ] && [ ! -L "$target" ]; then
     rm -rf "$target"
   fi
-  ln -sfn $MW_HOME/canasta-extensions/$bundled_extension_id $target
+  ln -sfn ../canasta-extensions/$bundled_extension_id $target
 done
 
 echo "Symlinking bundled skins..."
@@ -21,7 +24,7 @@ do
   if [ -d "$target" ] && [ ! -L "$target" ]; then
     rm -rf "$target"
   fi
-  ln -sfn $MW_HOME/canasta-skins/$bundled_skin_id $target
+  ln -sfn ../canasta-skins/$bundled_skin_id $target
 done
 
 echo "Symlinking user extensions and overwriting any redundant bundled extensions..."
@@ -33,7 +36,7 @@ do
   if [ -d "$target" ] && [ ! -L "$target" ]; then
     rm -rf "$target"
   fi
-  ln -sfn $MW_HOME/user-extensions/$user_extension_id $target
+  ln -sfn ../user-extensions/$user_extension_id $target
 done
 
 echo "Symlinking user skins and overwriting any redundant bundled skins..."
@@ -45,5 +48,5 @@ do
   if [ -d "$target" ] && [ ! -L "$target" ]; then
     rm -rf "$target"
   fi
-  ln -sfn $MW_HOME/user-skins/$user_skin_id $target
+  ln -sfn ../user-skins/$user_skin_id $target
 done
