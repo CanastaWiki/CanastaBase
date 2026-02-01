@@ -165,8 +165,11 @@ run_mw_script() {
 }
 
 ########## Run maintenance scripts ##########
-echo "Checking for LocalSettings..."
-if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
+# Check for valid configuration:
+# - New architecture: config/wikis.yaml (wiki farm config used by FarmConfigLoader.php)
+# - Legacy: config/LocalSettings.php or config/CommonSettings.php
+echo "Checking for configuration..."
+if [ -e "$MW_VOLUME/config/wikis.yaml" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
   if isTrue "$MW_AUTOUPDATE"; then
       waitdatabase
       rm "$WWW_ROOT/.maintenance"
@@ -179,12 +182,12 @@ if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/Commo
 else
     rm "$WWW_ROOT/.maintenance"
     set +x
-    echo "There is no LocalSettings.php/CommonSettings.php file"
+    echo "Waiting for configuration (wikis.yaml or LocalSettings.php)..."
     n=6
-    while [ ! -e "$MW_VOLUME/config/LocalSettings.php" ] && [ ! -e "$MW_VOLUME/config/CommonSettings.php" ]; do
+    while [ ! -e "$MW_VOLUME/config/wikis.yaml" ] && [ ! -e "$MW_VOLUME/config/LocalSettings.php" ] && [ ! -e "$MW_VOLUME/config/CommonSettings.php" ]; do
         echo -n "#"
         if [ $n -eq 0 ]; then
-            echo " There is no LocalSettings.php/CommonSettings.php file..."
+            echo " Waiting for configuration..."
             n=6
         else
             ((n--))
@@ -193,7 +196,7 @@ else
     done
 
     echo
-    echo "Found LocalSettings.php/CommonSettings.php file"
+    echo "Found configuration file"
     set -x
     # reload variables
     WG_DB_TYPE=$(get_mediawiki_db_var wgDBtype)
