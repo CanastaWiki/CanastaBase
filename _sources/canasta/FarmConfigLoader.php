@@ -145,9 +145,13 @@ $wgCacheDirectory = "$IP/cache/$wikiID";
 $wgUploadDirectory = "$IP/images/$wikiID";
 
 // Load additional configuration files specific to the wiki ID
-$files = glob( getenv( 'MW_VOLUME' ) . "/config/{$wikiID}/*.php" );
+// Check new path first (config/settings/wikis/<wiki_id>/), fall back to legacy path (config/<wiki_id>/)
+$wikiConfigDir = getenv( 'MW_VOLUME' ) . "/config/settings/wikis/{$wikiID}";
+if ( !is_dir( $wikiConfigDir ) ) {
+	$wikiConfigDir = getenv( 'MW_VOLUME' ) . "/config/{$wikiID}";
+}
 
-$wgEnableUploads = true;
+$files = glob( $wikiConfigDir . '/*.php' );
 
 // Check if the glob function was successful, else continue with the execution
 if ( $files !== false && is_array( $files ) ) {
