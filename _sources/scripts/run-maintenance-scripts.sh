@@ -114,14 +114,51 @@ run_maintenance_script_if_needed () {
     fi
 }
 
+get_wiki_ids() {
+    # Get all wiki IDs from wikis.yaml
+    # Returns one wiki ID per line, or empty if wikis.yaml doesn't exist
+    local wikis_yaml="$MW_VOLUME/config/wikis.yaml"
+    if [ -f "$wikis_yaml" ]; then
+        php -r "
+            \$config = yaml_parse_file('$wikis_yaml');
+            if (\$config && isset(\$config['wikis'])) {
+                foreach (\$config['wikis'] as \$wiki) {
+                    if (isset(\$wiki['id'])) {
+                        echo \$wiki['id'] . \"\\n\";
+                    }
+                }
+            }
+        "
+    fi
+}
+
 run_autoupdate () {
     echo >&2 'Check for the need to run maintenance scripts'
-    ### maintenance/update.php
-    run_maintenance_script_if_needed 'maintenance_update' "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
-        'maintenance/update.php --quick' || {
-            echo >&2 "An error occurred when auto-update script was running"
-            return $?
-        }
+
+    # Get all wiki IDs (if wiki farm) or use empty string for single wiki
+    wiki_ids=$(get_wiki_ids)
+
+    if [ -n "$wiki_ids" ]; then
+        # Wiki farm: run update.php for each wiki
+        echo >&2 "Wiki farm detected, running maintenance for all wikis..."
+        while IFS= read -r wiki_id; do
+            if [ -n "$wiki_id" ]; then
+                echo >&2 "Running maintenance/update.php for wiki: $wiki_id"
+                run_maintenance_script_if_needed "maintenance_update_$wiki_id" "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
+                    "maintenance/update.php --quick --wiki=$wiki_id" || {
+                        echo >&2 "An error occurred when auto-update script was running for wiki: $wiki_id"
+                        return $?
+                    }
+            fi
+        done <<< "$wiki_ids"
+    else
+        # Single wiki (legacy mode)
+        run_maintenance_script_if_needed 'maintenance_update' "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
+            'maintenance/update.php --quick' || {
+                echo >&2 "An error occurred when auto-update script was running"
+                return $?
+            }
+    fi
 
     echo >&2 "Auto-update completed"
 }
