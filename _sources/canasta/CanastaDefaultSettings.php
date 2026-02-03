@@ -104,10 +104,6 @@ $wgDBTableOptions = "ENGINE=InnoDB, DEFAULT CHARSET=binary";
 $wgMainCacheType = CACHE_ACCEL;
 $wgMemCachedServers = [];
 
-# Default skin
-$wgDefaultSkin = "vector-2022";
-wfLoadSkin( 'Vector' );
-
 # Docker specific setup
 # Exclude all private IP ranges
 # see https://www.mediawiki.org/wiki/Manual:$wgCdnServersNoPurge
