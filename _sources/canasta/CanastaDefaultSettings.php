@@ -10,10 +10,18 @@ require_once "{$IP}/CanastaUtils.php";
 $canastaLocalSettingsFilePath = getenv( 'MW_VOLUME' ) . '/config/LocalSettings.php';
 $canastaCommonSettingsFilePath = getenv( 'MW_VOLUME' ) . '/config/CommonSettings.php';
 
+// Check if installation is configured:
+// - New installations: MW_SECRET_KEY is set in environment
+// - Existing installations: config/LocalSettings.php or config/CommonSettings.php exists
+$hasSecretKeyEnv = getenv( 'MW_SECRET_KEY' ) !== false && getenv( 'MW_SECRET_KEY' ) !== '';
+$hasLocalSettings = file_exists( $canastaLocalSettingsFilePath );
+$hasCommonSettings = file_exists( $canastaCommonSettingsFilePath );
+$isConfigured = $hasSecretKeyEnv || $hasLocalSettings || $hasCommonSettings;
+
 if ( defined( 'MW_CONFIG_CALLBACK' ) ) {
 	// Called from WebInstaller or similar entry point
 
-	if ( !file_exists( $canastaLocalSettingsFilePath ) && !file_exists( $canastaCommonSettingsFilePath ) ) {
+	if ( !$isConfigured ) {
 		// Remove all variables, WebInstaller should decide that "$IP/LocalSettings.php" does not exist.
 		$vars = array_keys( get_defined_vars() );
 		foreach ( $vars as $v => $k ) {
@@ -25,8 +33,8 @@ if ( defined( 'MW_CONFIG_CALLBACK' ) ) {
 }
 // WebStart entry point
 
-// Check that user's LocalSettings.php exists
-if ( !is_readable( $canastaLocalSettingsFilePath ) && !is_readable( $canastaCommonSettingsFilePath ) ) {
+// Check that installation is configured
+if ( !$isConfigured ) {
 	// Emulate that "$IP/LocalSettings.php" does not exist
 
 	// Set CANASTA_CONFIG_FILE for NoLocalSettings template work correctly in includes/CanastaNoLocalSettings.php
@@ -59,6 +67,46 @@ $wgPygmentizePath = '/usr/bin/pygmentize';
 
 # SVG Converters
 $wgSVGConverter = 'rsvg';
+
+# Binary paths
+$wgDiff3 = "/usr/bin/diff3";
+$wgImageMagickConvertCommand = "/usr/bin/convert";
+$wgUseImageMagick = true;
+
+# File uploads enabled by default (Canasta is configured for uploads)
+$wgEnableUploads = true;
+
+# Disable pingback
+$wgPingback = false;
+
+# Use local files instead of Wikimedia Commons
+$wgUseInstantCommons = false;
+
+# Database connection (from environment, can be overridden by config/LocalSettings.php)
+$wgDBtype = "mysql";
+$wgDBserver = "db";
+$wgDBuser = "root";
+$wgDBpassword = getenv( 'MYSQL_PASSWORD' ) ?: 'mediawiki';
+
+# Secret key (from environment, can be overridden by config/LocalSettings.php)
+$secretKey = getenv( 'MW_SECRET_KEY' );
+if ( $secretKey ) {
+	$wgSecretKey = $secretKey;
+}
+$wgAuthenticationTokenVersion = "1";
+
+# MySQL defaults
+$wgDBprefix = "";
+$wgDBssl = false;
+$wgDBTableOptions = "ENGINE=InnoDB, DEFAULT CHARSET=binary";
+
+# Cache (Canasta uses APCu)
+$wgMainCacheType = CACHE_ACCEL;
+$wgMemCachedServers = [];
+
+# Default skin
+$wgDefaultSkin = "vector-2022";
+wfLoadSkin( 'Vector' );
 
 # Docker specific setup
 # Exclude all private IP ranges
@@ -104,7 +152,14 @@ if ( file_exists( $canastaLocalSettingsFilePath ) ) {
 	require_once "$canastaLocalSettingsFilePath";
 }
 
-$filenames = glob( getenv( 'MW_VOLUME' ) . '/config/settings/*.php' );
+# Load global settings files
+# Check new path first (settings/global/), fall back to legacy path (settings/)
+$globalSettingsDir = getenv( 'MW_VOLUME' ) . '/config/settings/global';
+if ( !is_dir( $globalSettingsDir ) ) {
+	$globalSettingsDir = getenv( 'MW_VOLUME' ) . '/config/settings';
+}
+
+$filenames = glob( $globalSettingsDir . '/*.php' );
 
 if ( $filenames !== false && is_array( $filenames ) ) {
 	sort( $filenames );

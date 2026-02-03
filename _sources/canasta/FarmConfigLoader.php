@@ -10,46 +10,56 @@ $original_url = getenv( 'ORIGINAL_URL' );
 $serverName = "";
 $path = "";
 
-// Check if the original URL is defined, else throw an exception
+// Track if we're in CLI mode without a specific wiki
+$cliDefaultToFirstWiki = false;
+
+// Check if the original URL is defined
 if ( $original_url === false && !defined( 'MW_WIKI_NAME' ) ) {
-	return;
-}
-
-// Parse the original URL
-$urlComponents = parse_url( $original_url );
-
-// Check if URL parsing was successful, else throw an exception
-if ( $urlComponents === false ) {
-	throw new Exception( 'Error: Failed to parse the original URL' );
-}
-
-// Extract the server name (host) from the URL
-if ( isset( $urlComponents['host'] ) ) {
-	$serverName = $urlComponents['host'];
-	// Include port if present
-	if ( isset( $urlComponents['port'] ) ) {
-		$serverName .= ':' . $urlComponents['port'];
+	// In CLI mode without specific wiki, we'll default to the first wiki
+	if ( PHP_SAPI === 'cli' ) {
+		$cliDefaultToFirstWiki = true;
+	} else {
+		return;
 	}
 }
 
-// Extract the path from the URL, if any
-if ( isset( $urlComponents['path'] ) ) {
-	// Split the path into parts
-	$pathParts = explode( '/', trim( $urlComponents['path'], '/' ) );
+// Parse the original URL (skip if we're defaulting to first wiki)
+if ( !$cliDefaultToFirstWiki ) {
+	$urlComponents = parse_url( $original_url );
 
-	// Check if path splitting was successful, else throw an exception
-	if ( $pathParts === false ) {
-		throw new Exception( 'Error: Failed to split the path into parts' );
+	// Check if URL parsing was successful, else throw an exception
+	if ( $urlComponents === false ) {
+		throw new Exception( 'Error: Failed to parse the original URL' );
 	}
 
-	// If there is a path, store the first directory in the variable $path
-	if ( count( $pathParts ) > 0 ) {
-		$firstDirectory = $pathParts[0];
+	// Extract the server name (host) from the URL
+	if ( isset( $urlComponents['host'] ) ) {
+		$serverName = $urlComponents['host'];
+		// Include port if present
+		if ( isset( $urlComponents['port'] ) ) {
+			$serverName .= ':' . $urlComponents['port'];
+		}
 	}
 
-	// If the first directory is not "wiki" or "w", store it in the variable $path
-	if ( $firstDirectory != "wiki" && $firstDirectory != "w" ) {
-		$path = $firstDirectory;
+	// Extract the path from the URL, if any
+	if ( isset( $urlComponents['path'] ) ) {
+		// Split the path into parts
+		$pathParts = explode( '/', trim( $urlComponents['path'], '/' ) );
+
+		// Check if path splitting was successful, else throw an exception
+		if ( $pathParts === false ) {
+			throw new Exception( 'Error: Failed to split the path into parts' );
+		}
+
+		// If there is a path, store the first directory in the variable $path
+		if ( count( $pathParts ) > 0 ) {
+			$firstDirectory = $pathParts[0];
+		}
+
+		// If the first directory is not "wiki" or "w", store it in the variable $path
+		if ( $firstDirectory != "wiki" && $firstDirectory != "w" ) {
+			$path = $firstDirectory;
+		}
 	}
 }
 
@@ -104,6 +114,26 @@ if ( empty( $path ) ) {
 // Retrieve the wikiID if available
 $wikiID = defined( 'MW_WIKI_NAME' ) ? MW_WIKI_NAME : null;
 
+// In CLI mode without specific wiki, default to the first wiki
+if ( $cliDefaultToFirstWiki && $wikiID === null ) {
+	$firstWiki = reset( $wikiConfigurations['wikis'] );
+	if ( $firstWiki !== false && isset( $firstWiki['id'] ) ) {
+		$wikiID = $firstWiki['id'];
+		// Parse the first wiki's URL to set serverName and path
+		$wikiUrl = $firstWiki['url'] ?? '';
+		if ( strpos( $wikiUrl, '/' ) !== false ) {
+			// URL contains a path component (e.g., "example.com/wiki1")
+			$urlParts = explode( '/', $wikiUrl, 2 );
+			$serverName = $urlParts[0];
+			$path = $urlParts[1];
+		} else {
+			$serverName = $wikiUrl;
+			$path = '';
+		}
+		$key = $wikiUrl;
+	}
+}
+
 // Check if the key is null or if it exists in the urlToWikiIdMap, else throw an exception
 if ( $key === null ) {
 	throw new Exception( "Error: Key is null." );
@@ -145,9 +175,13 @@ $wgCacheDirectory = "$IP/cache/$wikiID";
 $wgUploadDirectory = "$IP/images/$wikiID";
 
 // Load additional configuration files specific to the wiki ID
-$files = glob( getenv( 'MW_VOLUME' ) . "/config/{$wikiID}/*.php" );
+// Check new path first (config/settings/wikis/<wiki_id>/), fall back to legacy path (config/<wiki_id>/)
+$wikiConfigDir = getenv( 'MW_VOLUME' ) . "/config/settings/wikis/{$wikiID}";
+if ( !is_dir( $wikiConfigDir ) ) {
+	$wikiConfigDir = getenv( 'MW_VOLUME' ) . "/config/{$wikiID}";
+}
 
-$wgEnableUploads = true;
+$files = glob( $wikiConfigDir . '/*.php' );
 
 // Check if the glob function was successful, else continue with the execution
 if ( $files !== false && is_array( $files ) ) {
