@@ -88,6 +88,23 @@ foreach (['extensions', 'skins'] as $type) {
             }
         }
 
+        // Generate gitinfo.json before removing .git, so Special:Version can show commit info
+        $extPath = "$MW_HOME/canasta-$type/$name";
+        $hash = trim(shell_exec("cd $extPath && git rev-parse HEAD 2>/dev/null") ?? '');
+        if ($hash) {
+            $date = trim(shell_exec("cd $extPath && git log -1 --format=%ct HEAD 2>/dev/null") ?? '');
+            $branch = trim(shell_exec("cd $extPath && git rev-parse --abbrev-ref HEAD 2>/dev/null") ?? '');
+            $remote = trim(shell_exec("cd $extPath && git config --get remote.origin.url 2>/dev/null") ?? '');
+            $gitinfo = [
+                'head' => $hash,
+                'headSHA1' => $hash,
+                'headCommitDate' => $date,
+                'branch' => $branch,
+                'remoteURL' => $remote
+            ];
+            file_put_contents("$extPath/gitinfo.json", json_encode($gitinfo));
+        }
+
         // Remove .git directory after all git operations are complete, to reduce the size of the Docker image
         exec("rm -rf $MW_HOME/canasta-$type/$name/.git");
 
