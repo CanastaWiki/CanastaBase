@@ -123,6 +123,24 @@ RUN set -x; \
 
 # Other patches
 
+# Generate gitinfo.json for core, extensions, and skins so that
+# Special:Version can display git commit hashes after .git is removed
+RUN set -x; \
+    cd $MW_HOME \
+    && for dir in . extensions/*/ skins/*/; do \
+        if [ -d "$dir/.git" ] || [ -f "$dir/.git" ]; then \
+            cd "$MW_HOME/$dir" \
+            && hash=$(git rev-parse HEAD) \
+            && date=$(git log -1 --format=%ct HEAD) \
+            && branch=$(git rev-parse --abbrev-ref HEAD) \
+            && remote=$(git config --get remote.origin.url || echo "") \
+            && printf '{"head":"%s","headSHA1":"%s","headCommitDate":"%s","branch":"%s","remoteURL":"%s"}\n' \
+                "$hash" "$hash" "$date" "$branch" "$remote" \
+                > gitinfo.json \
+            && cd "$MW_HOME"; \
+        fi; \
+    done
+
 # Cleanup all .git leftovers
 RUN set -x; \
     cd $MW_HOME \
