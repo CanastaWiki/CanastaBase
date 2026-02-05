@@ -113,6 +113,10 @@ $wgCdnServersNoPurge[] = '10.0.0.0/8';     // 10.0.0.0 – 10.255.255.255
 $wgCdnServersNoPurge[] = '172.16.0.0/12';  // 172.16.0.0 – 172.31.255.255
 $wgCdnServersNoPurge[] = '192.168.0.0/16'; // 192.168.0.0 – 192.168.255.255
 
+# Configure Varnish cache purging
+$wgCdnServers = [ 'varnish:80' ];
+$wgInternalServer = preg_replace( '/^https:/', 'http:', $wgServer );
+
 /**
  * Returns boolean value from environment variable
  * Must return the same result as isTrue function in run-apache.sh file
