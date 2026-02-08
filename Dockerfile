@@ -168,9 +168,10 @@ RUN set -x; \
     && chmod g+w -R $MW_HOME/canasta-extensions \
     && chown $WWW_USER:$WWW_GROUP -R $MW_HOME/canasta-skins \
     && chmod g+w -R $MW_HOME/canasta-skins \
-    # Create symlinks from $MW_VOLUME to the wiki root for images and cache directories
+    # Create symlinks from $MW_VOLUME to the wiki root for images, cache, and public_assets directories
     && ln -s $MW_VOLUME/images $MW_HOME/images \
-    && ln -s $MW_VOLUME/cache $MW_HOME/cache
+    && ln -s $MW_VOLUME/cache $MW_HOME/cache \
+    && ln -s $MW_VOLUME/public_assets $MW_HOME/public_assets
 
 # Create place where extensions and skins symlinks will live
 RUN set -x; \
@@ -231,7 +232,7 @@ COPY _sources/configs/.htaccess $WWW_ROOT/
 COPY _sources/images/favicon.ico $WWW_ROOT/
 COPY _sources/canasta/LocalSettings.php _sources/canasta/CanastaUtils.php _sources/canasta/CanastaDefaultSettings.php _sources/canasta/FarmConfigLoader.php $MW_HOME/
 COPY _sources/canasta/getMediawikiSettings.php /
-COPY _sources/canasta/canasta_img.php $MW_HOME/
+COPY _sources/canasta/canasta_img.php _sources/canasta/public_assets.php $MW_HOME/
 COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 
 RUN set -x; \
@@ -251,6 +252,8 @@ RUN set -x; \
 	&& sed -i '/<Directory \/var\/www\/>/i RewriteCond %{THE_REQUEST} \\s(.*?)\\s\nRewriteRule ^ - [E=ORIGINAL_URL:%{REQUEST_SCHEME}://%{HTTP_HOST}%1]' /etc/apache2/apache2.conf \
 	&& echo "Alias /w/images/ /var/www/mediawiki/w/canasta_img.php/" >> /etc/apache2/apache2.conf \
     && echo "Alias /w/images /var/www/mediawiki/w/canasta_img.php" >> /etc/apache2/apache2.conf \
+	&& echo "Alias /public_assets/ /var/www/mediawiki/w/public_assets.php/" >> /etc/apache2/apache2.conf \
+	&& echo "Alias /public_assets /var/www/mediawiki/w/public_assets.php" >> /etc/apache2/apache2.conf \
 	&& a2enmod expires remoteip\
 	&& a2disconf other-vhosts-access-log \
 	# Enable environment variables for FPM workers

@@ -8,13 +8,15 @@ readarray -t ids <<< "$wiki_ids"
 
 # Loop through the ids
 for db_name in "${ids[@]}"; do
-    # Create the cache and images directories if they don't exist
+    # Create the cache, images, and public_assets directories if they don't exist
     mkdir -p $MW_VOLUME/cache/$db_name
     mkdir -p $MW_VOLUME/images/$db_name
+    mkdir -p $MW_VOLUME/public_assets/$db_name
 
     # Change the permissions of these directories
     chown -R $WWW_USER:$WWW_GROUP $MW_VOLUME/cache/$db_name
     chown -R $WWW_USER:$WWW_GROUP $MW_VOLUME/images/$db_name
+    chown -R $WWW_USER:$WWW_GROUP $MW_VOLUME/public_assets/$db_name
 done
 
 # Protect Images Directory from Internet Access

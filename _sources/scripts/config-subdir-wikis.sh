@@ -21,6 +21,7 @@ for path in $wiki_paths; do
     # Modify .htaccess file
     sed -e "s|w/rest.php/|$path/w/rest.php/|g" \
     -e "s|w/canasta_img.php/|$path/w/canasta_img.php/|g" \
+    -e "s|w/public_assets.php/|$path/w/public_assets.php/|g" \
     -e "s|^/*$ %{DOCUMENT_ROOT}/w/index.php|/*$ %{DOCUMENT_ROOT}/$path/w/index.php|" \
     -e "s|^\\(.*\\)$ %{DOCUMENT_ROOT}/w/index.php|\\1$ %{DOCUMENT_ROOT}/$path/w/index.php|" \
     $WWW_ROOT/.htaccess > $WWW_ROOT/$path/.htaccess
@@ -28,5 +29,9 @@ for path in $wiki_paths; do
     # Modify apache2.conf file for canasta_img.php
     echo "Alias /$path/w/images/ /var/www/mediawiki/w/canasta_img.php/" >> /etc/apache2/apache2.conf
     echo "Alias /$path/w/images /var/www/mediawiki/w/canasta_img.php" >> /etc/apache2/apache2.conf
+
+    # Modify apache2.conf file for public_assets.php
+    echo "Alias /$path/public_assets/ /var/www/mediawiki/w/public_assets.php/" >> /etc/apache2/apache2.conf
+    echo "Alias /$path/public_assets /var/www/mediawiki/w/public_assets.php" >> /etc/apache2/apache2.conf
   fi
 done
