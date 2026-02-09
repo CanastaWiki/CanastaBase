@@ -82,10 +82,6 @@ $wgPingback = false;
 # Use local files instead of Wikimedia Commons
 $wgUseInstantCommons = false;
 
-# Scribunto: use LuaSandbox for better performance
-# LuaSandbox is a PHP extension that provides a sandboxed Lua environment
-$wgScribuntoDefaultEngine = 'luasandbox';
-
 # Database connection (from environment, can be overridden by config/LocalSettings.php)
 $wgDBtype = "mysql";
 $wgDBserver = "db";
