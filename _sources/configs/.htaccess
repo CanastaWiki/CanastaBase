@@ -12,6 +12,9 @@ RewriteRule ^/?w/rest.php/ - [L]
 # Redirects requests to canasta_img.php for handling image authorization in Canasta.
 RewriteRule ^/?w/canasta_img.php/ - [L]
 
+# Redirects requests to public_assets.php for serving public assets in Canasta.
+RewriteRule ^/?w/public_assets.php/ - [L]
+
 # Redirect / to Main Page
 RewriteRule ^/*$ %{DOCUMENT_ROOT}/w/index.php [L]
 

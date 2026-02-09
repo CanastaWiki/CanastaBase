@@ -60,9 +60,9 @@ config_subdir_wikis() {
 }
 
 create_storage_dirs() {
-    echo "Creating cache and images dirs..."
+    echo "Creating cache, images, and public_assets dirs..."
     /create-storage-dirs.sh
-    echo "Created cache and images dirs..."
+    echo "Created cache, images, and public_assets dirs..."
 }
 
 check_mount_points () {
@@ -90,6 +90,12 @@ cd "$MW_HOME" || exit
 /update-images-permissions.sh &
 
 ########## Run maintenance scripts ##########
+# Create storage directories early (before LocalSettings check) since wikis.yaml
+# exists before install.php runs, and we need these directories to exist for uploads
+if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
+  create_storage_dirs
+fi
+
 echo "Checking for LocalSettings..."
 if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
   # Run auto-update
@@ -97,7 +103,6 @@ if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/Commo
   run_autoupdate
   if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
     config_subdir_wikis
-    create_storage_dirs
   fi
 fi
 
