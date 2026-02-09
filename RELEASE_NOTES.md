@@ -8,3 +8,4 @@ CanastaBase version history:
 - 1.0.5 - October 8, 2025 - Upgrade to MediaWiki 1.43.5
 - 1.0.6 - November 27, 2025 - Added OCI labels exposing the bundled MediaWiki version and branch for easier image introspection
 - 1.0.7 - December 16, 2025 - Upgrade to MediaWiki 1.43.6
+- 1.0.8 - February 2, 2029 - Changed to new configuration directory structure; added MW_SECRET_KEY and DISABLE_DIRECTORY_MONITOR environment variables; fixes for extension and skin symlink generation; fixed job runner in non-farm mode; fixed handling of DB access in wait-for-it.sh; fixed handling of non-standard web server port; added php8.1-bcmath extension
