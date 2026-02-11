@@ -260,7 +260,7 @@ COPY _sources/images/Powered-by-Canasta.png /var/www/mediawiki/w/resources/asset
 EXPOSE 80
 WORKDIR $MW_HOME
 
-HEALTHCHECK --interval=1m --timeout=10s \
+HEALTHCHECK --interval=1m --timeout=10s --start-period=5m \
 	CMD wget -q --method=HEAD localhost/server-status
 
 CMD ["/run-all.sh"]
