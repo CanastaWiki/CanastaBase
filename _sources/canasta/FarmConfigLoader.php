@@ -155,9 +155,10 @@ if ( !empty( $selectedWikiConfig ) ) {
 	// Set database name to the wiki ID
 	$wgDBname = $wikiID;
 
-	// Set site name and meta namespace from the configuration, or use the wiki ID if 'name' is not set
+	// Set site name from the configuration, or use the wiki ID if 'name' is not set
 	$wgSitename = isset( $selectedWikiConfig['name'] ) ? $selectedWikiConfig['name'] : $wikiID;
-	$wgMetaNamespace = isset( $selectedWikiConfig['name'] ) ? $selectedWikiConfig['name'] : $wikiID;
+	// Set meta namespace from site name with spaces replaced by underscores (required for valid namespace names)
+	$wgMetaNamespace = str_replace( ' ', '_', $wgSitename );
 } else {
 	die( 'Unknown wiki.' );
 }
