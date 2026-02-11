@@ -96,9 +96,9 @@ if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
   create_storage_dirs
 fi
 
-echo "Checking for LocalSettings..."
-if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
-  # Run auto-update
+echo "Checking for configuration..."
+if [ -e "$MW_VOLUME/config/wikis.yaml" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
+  # Run auto-update (LocalSettings.php/CommonSettings.php checks are for backward compatibility)
   . /run-maintenance-scripts.sh
   run_autoupdate
 fi
