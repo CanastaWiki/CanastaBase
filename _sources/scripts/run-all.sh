@@ -101,9 +101,11 @@ if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/Commo
   # Run auto-update
   . /run-maintenance-scripts.sh
   run_autoupdate
-  if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
-    config_subdir_wikis
-  fi
+fi
+
+# Configure Apache rewrites for path-based wikis (e.g., localhost/wiki2)
+if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
+  config_subdir_wikis
 fi
 
 echo "Starting services..."
