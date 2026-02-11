@@ -96,14 +96,16 @@ if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
   create_storage_dirs
 fi
 
-echo "Checking for LocalSettings..."
-if [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
-  # Run auto-update
+echo "Checking for MediaWiki configuration..."
+if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
+  # Run auto-update (LocalSettings.php/CommonSettings.php checks are for backward compatibility)
   . /run-maintenance-scripts.sh
   run_autoupdate
-  if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
-    config_subdir_wikis
-  fi
+fi
+
+# Configure Apache rewrites for path-based wikis (e.g., localhost/wiki2)
+if [ -e "$MW_VOLUME/config/wikis.yaml" ]; then
+  config_subdir_wikis
 fi
 
 echo "Starting services..."
@@ -125,7 +127,7 @@ else
 fi
 
 echo "Checking permissions of MediaWiki volume dir $MW_VOLUME except $MW_VOLUME/images..."
-make_dir_writable "$MW_VOLUME" -not '(' -path "$MW_VOLUME/images" -prune ')'
+make_dir_writable "$MW_VOLUME" -not '(' -path "$MW_VOLUME/images" -prune ')' &
 
 # Running php-fpm
 /run-php-fpm.sh &
