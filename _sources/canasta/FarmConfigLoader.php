@@ -143,8 +143,8 @@ if ( $key === null ) {
 	HttpStatus::header( 404 );
 	header( 'Cache-Control: no-cache' );
 	header( 'Content-Type: text/html; charset=utf-8' );
-	echo("URL not found");
-	throw new Exception( "Error: $key does not exist in urlToWikiIdMap." );
+	echo "Not Found";
+	exit;
 }
 
 // Get the configuration for the selected wiki
