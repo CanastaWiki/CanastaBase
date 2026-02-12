@@ -7,13 +7,34 @@ set -x
 # Symlink all extensions and skins (both bundled and user)
 /create-symlinks.sh
 
-# Unified composer autoloader: check if composer dependencies need updating.
-# This detects changes to composer.local.json (user edits) and new
-# user-extensions/user-skins with composer.json files.
-if [ -f "$MW_VOLUME/config/composer.local.json" ]; then
-  cp "$MW_VOLUME/config/composer.local.json" "$MW_HOME/composer.local.json"
+# Unified composer autoloader
+#
+# The Canasta image builds a unified vendor/autoload.php at build time using
+# composer.local.json with merge-plugin globs (extensions/*/composer.json,
+# skins/*/composer.json). At runtime, we check whether the user's
+# config/composer.local.json differs from what was used at build time and
+# re-run composer update if so. This picks up user-extensions with
+# composer.json files and any custom edits to composer.local.json.
+#
+# Behavior based on config/composer.local.json state:
+#   - Missing: build-time autoloader is preserved as-is, no runtime update
+#   - Empty include array: same as missing (build-time state preserved)
+#   - Non-empty include array: copied to $MW_HOME, hash-checked, composer
+#     update runs if changed
+#
+# To opt out of runtime composer updates, delete config/composer.local.json
+# or empty its include array. The build-time autoloader will be used as-is.
+COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
+HAS_GLOBS=false
+if [ -f "$COMPOSER_LOCAL" ]; then
+  HAS_GLOBS=$(php -r '
+    $data = json_decode(file_get_contents("'"$COMPOSER_LOCAL"'"), true);
+    $include = $data["extra"]["merge-plugin"]["include"] ?? [];
+    echo count($include) > 0 ? "true" : "false";
+  ')
 fi
-if [ -f "$MW_HOME/composer.local.json" ]; then
+if [ "$HAS_GLOBS" = "true" ]; then
+  cp "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"
   CURRENT_HASH=$(php -r '
     $files = ["'"$MW_HOME"'/composer.local.json"];
     foreach (glob("'"$MW_HOME"'/extensions/*/composer.json") as $f) $files[] = $f;
@@ -34,6 +55,8 @@ if [ -f "$MW_HOME/composer.local.json" ]; then
   else
     echo "Composer dependencies unchanged, skipping update."
   fi
+else
+  echo "No composer.local.json globs found, using build-time autoloader."
 fi
 
 # Soft sync contents from $MW_ORIGIN_FILES directory to $MW_VOLUME
