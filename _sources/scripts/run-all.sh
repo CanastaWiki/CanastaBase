@@ -7,6 +7,35 @@ set -x
 # Symlink all extensions and skins (both bundled and user)
 /create-symlinks.sh
 
+# Unified composer autoloader: check if composer dependencies need updating.
+# This detects changes to composer.local.json (user edits) and new
+# user-extensions/user-skins with composer.json files.
+if [ -f "$MW_VOLUME/config/composer.local.json" ]; then
+  cp "$MW_VOLUME/config/composer.local.json" "$MW_HOME/composer.local.json"
+fi
+if [ -f "$MW_HOME/composer.local.json" ]; then
+  CURRENT_HASH=$(php -r '
+    $files = ["'"$MW_HOME"'/composer.local.json"];
+    foreach (glob("'"$MW_HOME"'/extensions/*/composer.json") as $f) $files[] = $f;
+    foreach (glob("'"$MW_HOME"'/skins/*/composer.json") as $f) $files[] = $f;
+    sort($files);
+    $h = "";
+    foreach ($files as $f) $h .= md5_file($f);
+    echo md5($h);
+  ')
+  SAVED_HASH=""
+  if [ -f "$MW_HOME/.composer-deps-hash" ]; then
+    SAVED_HASH=$(cat "$MW_HOME/.composer-deps-hash" | tr -d '[:space:]')
+  fi
+  if [ "$CURRENT_HASH" != "$SAVED_HASH" ]; then
+    echo "Composer dependencies changed, running composer update..."
+    composer update --working-dir="$MW_HOME" --no-dev --no-interaction
+    echo "$CURRENT_HASH" > "$MW_HOME/.composer-deps-hash"
+  else
+    echo "Composer dependencies unchanged, skipping update."
+  fi
+fi
+
 # Soft sync contents from $MW_ORIGIN_FILES directory to $MW_VOLUME
 # The goal of this operation is to copy over all the files generated
 # by the image to bind-mount points on host which are bind to

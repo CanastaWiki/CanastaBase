@@ -79,8 +79,9 @@ foreach (['extensions', 'skins'] as $type) {
         if ($additionalSteps !== null) {
             foreach ($additionalSteps as $step) {
                 if ($step === "composer update") {
-                    $composerInstallCmd = "composer install --working-dir=$MW_HOME/canasta-$type/$name --no-interaction --no-dev";
-                    shell_exec("$composerInstallCmd");
+                    // Skip per-extension composer install; dependencies will be
+                    // resolved by the unified root-level composer update below.
+                    echo "Skipping per-extension composer install for $name (will use unified autoloader)\n";
                 } elseif ($step === "git submodule update") {
                     $submoduleUpdateCmd = "cd $MW_HOME/canasta-$type/$name && git submodule update --init";
                     exec($submoduleUpdateCmd);
@@ -117,6 +118,67 @@ foreach (['extensions', 'skins'] as $type) {
         }
     }
 }
+
+// Create build-time symlinks in extensions/ and skins/ pointing to
+// canasta-extensions/ and canasta-skins/. This mirrors what create-symlinks.sh
+// does at runtime, but without user-extensions/user-skins (which don't exist
+// at build time). This lets us use the same extensions/*/composer.json globs
+// at both build time and runtime.
+echo "Creating build-time symlinks for canasta extensions and skins...\n";
+foreach (['extensions' => 'canasta-extensions', 'skins' => 'canasta-skins'] as $target => $source) {
+    foreach (glob("$MW_HOME/$source/*", GLOB_ONLYDIR) as $dir) {
+        $name = basename($dir);
+        $link = "$MW_HOME/$target/$name";
+        if (!file_exists($link)) {
+            symlink("../$source/$name", $link);
+        }
+    }
+}
+
+// Create composer.local.json with merge-plugin globs. The extensions/ and skins/
+// directories contain symlinks to canasta-extensions/, canasta-skins/, and (at
+// runtime) user-extensions/ and user-skins/, so these two globs cover everything.
+$composerLocal = [
+    'extra' => [
+        'merge-plugin' => [
+            'include' => [
+                'extensions/*/composer.json',
+                'skins/*/composer.json',
+            ]
+        ]
+    ]
+];
+$composerLocalJson = json_encode($composerLocal, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+file_put_contents("$MW_HOME/composer.local.json", $composerLocalJson);
+
+// Also save to $MW_ORIGIN_FILES/config/ so rsync populates user's config/ on
+// first run.
+exec("mkdir -p $MW_ORIGIN_FILES/config");
+file_put_contents("$MW_ORIGIN_FILES/config/composer.local.json", $composerLocalJson);
+
+// Run unified composer update at the MediaWiki root
+echo "Running unified composer update...\n";
+$composerUpdateCmd = "composer update --working-dir=$MW_HOME --no-dev --no-interaction";
+passthru($composerUpdateCmd, $composerReturnCode);
+if ($composerReturnCode !== 0) {
+    echo "WARNING: composer update exited with code $composerReturnCode\n";
+}
+
+// Save a hash of composer.local.json + all resolved extension/skin composer.json
+// files so run-all.sh can detect changes at runtime.
+$hashFiles = ["$MW_HOME/composer.local.json"];
+foreach (glob("$MW_HOME/extensions/*/composer.json") as $f) {
+    $hashFiles[] = $f;
+}
+foreach (glob("$MW_HOME/skins/*/composer.json") as $f) {
+    $hashFiles[] = $f;
+}
+sort($hashFiles);
+$combinedHash = '';
+foreach ($hashFiles as $f) {
+    $combinedHash .= md5_file($f);
+}
+file_put_contents("$MW_HOME/.composer-deps-hash", md5($combinedHash) . "\n");
 
 /**
  * Recursive function to allow for loading a whole chain of YAML files (if
