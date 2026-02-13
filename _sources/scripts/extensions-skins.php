@@ -82,8 +82,7 @@ foreach (['extensions', 'skins'] as $type) {
         if ($additionalSteps !== null) {
             foreach ($additionalSteps as $step) {
                 if ($step === "composer update") {
-                    // Skip per-extension composer install; dependencies will be
-                    // resolved by the unified root-level composer update below.
+                    // Dependencies will be resolved by the unified root-level composer update below.
                     $composerIncludes[] = "$type/$name/composer.json";
                 } elseif ($step === "git submodule update") {
                     $submoduleUpdateCmd = "cd $MW_HOME/canasta-$type/$name && git submodule update --init";
