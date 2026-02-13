@@ -26,15 +26,15 @@ set -x
 # To opt out of runtime composer updates, delete config/composer.local.json
 # or empty its include array. The build-time autoloader will be used as-is.
 COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
-HAS_GLOBS=false
+HAS_INCLUDES=false
 if [ -f "$COMPOSER_LOCAL" ]; then
-  HAS_GLOBS=$(php -r '
+  HAS_INCLUDES=$(php -r '
     $data = json_decode(file_get_contents("'"$COMPOSER_LOCAL"'"), true);
     $include = $data["extra"]["merge-plugin"]["include"] ?? [];
     echo count($include) > 0 ? "true" : "false";
   ')
 fi
-if [ "$HAS_GLOBS" = "true" ]; then
+if [ "$HAS_INCLUDES" = "true" ]; then
   cp "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"
   CURRENT_HASH=$(php -r '
     $clj = json_decode(file_get_contents("'"$MW_HOME"'/composer.local.json"), true);
@@ -60,7 +60,7 @@ if [ "$HAS_GLOBS" = "true" ]; then
     echo "Composer dependencies unchanged, skipping update."
   fi
 else
-  echo "No composer.local.json globs found, using build-time autoloader."
+  echo "No composer.local.json includes found, using build-time autoloader."
 fi
 
 # Soft sync contents from $MW_ORIGIN_FILES directory to $MW_VOLUME
