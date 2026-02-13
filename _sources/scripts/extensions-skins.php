@@ -85,7 +85,6 @@ foreach (['extensions', 'skins'] as $type) {
                     // Skip per-extension composer install; dependencies will be
                     // resolved by the unified root-level composer update below.
                     $composerIncludes[] = "$type/$name/composer.json";
-                    echo "Skipping per-extension composer install for $name (will use unified autoloader)\n";
                 } elseif ($step === "git submodule update") {
                     $submoduleUpdateCmd = "cd $MW_HOME/canasta-$type/$name && git submodule update --init";
                     exec($submoduleUpdateCmd);
