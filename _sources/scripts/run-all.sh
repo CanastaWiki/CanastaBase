@@ -157,6 +157,15 @@ if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ 
   # Run auto-update (LocalSettings.php/CommonSettings.php checks are for backward compatibility)
   . /run-maintenance-scripts.sh
   run_autoupdate
+
+  # Initialize Semantic MediaWiki store if SMW is enabled but not yet set up
+  if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
+    mkdir -p "$MW_VOLUME/config/smw"
+    if [ ! -f "$MW_VOLUME/config/smw/smw.json" ]; then
+      echo "Initializing Semantic MediaWiki store..."
+      php "$MW_HOME/extensions/SemanticMediaWiki/maintenance/setupStore.php"
+    fi
+  fi
 fi
 
 # Configure Apache rewrites for path-based wikis (e.g., localhost/wiki2)
