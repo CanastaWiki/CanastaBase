@@ -140,13 +140,11 @@ foreach (['extensions' => 'canasta-extensions', 'skins' => 'canasta-skins'] as $
 }
 
 // Create composer.local.json with specific entries for bundled extensions/skins
-// that have composer dependencies, plus wildcards for user-extensions/skins.
-// We use specific entries rather than extensions/*/composer.json wildcards to
-// avoid broken composer.json files in extensions that don't need composer.
-$allIncludes = array_merge($composerIncludes, [
-    'user-extensions/*/composer.json',
-    'user-skins/*/composer.json',
-]);
+// that have composer dependencies. We use specific entries rather than wildcards
+// to avoid broken composer.json files in extensions that don't need composer.
+// Users who add extensions with composer dependencies should manually add
+// entries to config/composer.local.json.
+$allIncludes = $composerIncludes;
 $composerLocal = [
     'extra' => [
         'merge-plugin' => [
