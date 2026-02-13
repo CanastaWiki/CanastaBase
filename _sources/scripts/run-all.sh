@@ -7,6 +7,62 @@ set -x
 # Symlink all extensions and skins (both bundled and user)
 /create-symlinks.sh
 
+# Unified composer autoloader
+#
+# The Canasta image builds a unified vendor/autoload.php at build time using
+# composer.local.json with merge-plugin includes for specific bundled
+# extensions/skins that have composer dependencies. At runtime, we check
+# whether the user's config/composer.local.json differs from what was used
+# at build time and re-run composer update if so. Users who add extensions
+# with composer dependencies should manually add entries to
+# config/composer.local.json.
+#
+# Behavior based on config/composer.local.json state:
+#   - Missing: build-time autoloader is preserved as-is, no runtime update
+#   - Empty include array: same as missing (build-time state preserved)
+#   - Non-empty include array: copied to $MW_HOME, hash-checked, composer
+#     update runs if changed
+#
+# To opt out of runtime composer updates, delete config/composer.local.json
+# or empty its include array. The build-time autoloader will be used as-is.
+COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
+HAS_INCLUDES=false
+if [ -f "$COMPOSER_LOCAL" ]; then
+  HAS_INCLUDES=$(php -r '
+    $data = json_decode(file_get_contents("'"$COMPOSER_LOCAL"'"), true);
+    $include = $data["extra"]["merge-plugin"]["include"] ?? [];
+    echo count($include) > 0 ? "true" : "false";
+  ')
+fi
+if [ "$HAS_INCLUDES" = "true" ]; then
+  cp "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"
+  CURRENT_HASH=$(php -r '
+    $clj = json_decode(file_get_contents("'"$MW_HOME"'/composer.local.json"), true);
+    $patterns = $clj["extra"]["merge-plugin"]["include"] ?? [];
+    $files = ["'"$MW_HOME"'/composer.local.json"];
+    foreach ($patterns as $p) {
+      foreach (glob("'"$MW_HOME"'/" . $p) as $f) $files[] = $f;
+    }
+    sort($files);
+    $h = "";
+    foreach ($files as $f) $h .= md5_file($f);
+    echo md5($h);
+  ')
+  SAVED_HASH=""
+  if [ -f "$MW_HOME/.composer-deps-hash" ]; then
+    SAVED_HASH=$(cat "$MW_HOME/.composer-deps-hash" | tr -d '[:space:]')
+  fi
+  if [ "$CURRENT_HASH" != "$SAVED_HASH" ]; then
+    echo "Composer dependencies changed, running composer update..."
+    composer update --working-dir="$MW_HOME" --no-dev --no-interaction
+    echo "$CURRENT_HASH" > "$MW_HOME/.composer-deps-hash"
+  else
+    echo "Composer dependencies unchanged, skipping update."
+  fi
+else
+  echo "No composer.local.json includes found, using build-time autoloader."
+fi
+
 # Soft sync contents from $MW_ORIGIN_FILES directory to $MW_VOLUME
 # The goal of this operation is to copy over all the files generated
 # by the image to bind-mount points on host which are bind to
@@ -98,9 +154,49 @@ fi
 
 echo "Checking for MediaWiki configuration..."
 if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
+  # Snapshot which wikis have SMW set up before run_autoupdate, since
+  # update.php triggers setupStore.php via SMW hooks (creating .smw.json
+  # entries). We need to detect newly-setup wikis to run rebuildData.php.
+  SMW_JSON="$MW_VOLUME/config/smw/.smw.json"
+  if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
+    mkdir -p "$MW_VOLUME/config/smw"
+    SMW_WIKIS_BEFORE=""
+    if [ -f "$SMW_JSON" ]; then
+      SMW_WIKIS_BEFORE=$(php -r "
+        \$data = json_decode(file_get_contents('$SMW_JSON'), true) ?? [];
+        echo implode('\n', array_keys(\$data));
+      ")
+    fi
+  fi
+
   # Run auto-update (LocalSettings.php/CommonSettings.php checks are for backward compatibility)
   . /run-maintenance-scripts.sh
   run_autoupdate
+
+  # Rebuild Semantic MediaWiki data for any wikis that were just set up.
+  # setupStore.php (run by update.php hooks) creates tables but does not
+  # populate them — rebuildData.php is needed for Special:Browse etc.
+  if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
+    wiki_ids=$(get_wiki_ids)
+    if [ -n "$wiki_ids" ]; then
+      while IFS= read -r wiki_id; do
+        if [ -n "$wiki_id" ]; then
+          if ! echo "$SMW_WIKIS_BEFORE" | grep -qx "$wiki_id"; then
+            echo "Rebuilding Semantic MediaWiki data for wiki: $wiki_id..."
+            php "$MW_HOME/extensions/SemanticMediaWiki/maintenance/rebuildData.php" --wiki="$wiki_id"
+          fi
+        fi
+      done <<< "$wiki_ids"
+    else
+      if [ -z "$SMW_WIKIS_BEFORE" ]; then
+        # Single wiki: if .smw.json didn't exist before, setupStore just ran
+        if [ -f "$SMW_JSON" ]; then
+          echo "Rebuilding Semantic MediaWiki data..."
+          php "$MW_HOME/extensions/SemanticMediaWiki/maintenance/rebuildData.php"
+        fi
+      fi
+    fi
+  fi
 fi
 
 # Configure Apache rewrites for path-based wikis (e.g., localhost/wiki2)
