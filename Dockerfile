@@ -18,12 +18,13 @@ LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
       wiki.canasta.mediawiki.branch="$MW_VERSION"
 
 # System setup
+# hadolint ignore=DL3008
 RUN set x; \
 	apt-get clean \
 	&& apt-get update \
-	&& apt-get install -y aptitude \
+	&& apt-get install -y --no-install-recommends aptitude \
 	&& aptitude -y upgrade \
-	&& aptitude install -y \
+	&& aptitude install -y --no-install-recommends \
 	git \
 	inotify-tools \
 	apache2 \
@@ -85,44 +86,48 @@ RUN set -x; \
 	&& a2enmod mpm_event \
 	&& a2enmod proxy_fcgi \
     # Create directories
-    && mkdir -p $MW_HOME \
-	&& mkdir -p $MW_LOG \
-    && mkdir -p $MW_ORIGIN_FILES \
-    && mkdir -p $MW_VOLUME
+    && mkdir -p "$MW_HOME" \
+	&& mkdir -p "$MW_LOG" \
+    && mkdir -p "$MW_ORIGIN_FILES" \
+    && mkdir -p "$MW_VOLUME"
 
 # Composer
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN set -x; \
 	curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
     && composer self-update 2.1.3
 
+# hadolint ignore=DL3008
 RUN set -x; \
 	# Preconfigure Postfix to avoid the interactive prompt
 	echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections \
     && echo "postfix postfix/mailname string $LOCAL_SMTP_MAILNAME" | debconf-set-selections \
 	&& apt-get update \
-	&& apt-get install -y mailutils \
-	&& apt install -y postfix
+	&& apt-get install -y --no-install-recommends mailutils postfix \
+	&& rm -rf /var/lib/apt/lists/*
 
 COPY main.cf /etc/postfix/main.cf
 
 FROM base AS source
 
 # MediaWiki core
+# hadolint ignore=DL3003
 RUN set -x; \
-	git clone --depth 1 -b $MW_CORE_VERSION https://github.com/wikimedia/mediawiki $MW_HOME \
-	&& cd $MW_HOME \
+	git clone --depth 1 -b "$MW_CORE_VERSION" https://github.com/wikimedia/mediawiki "$MW_HOME" \
+	&& cd "$MW_HOME" \
 	&& git submodule update --init --recursive
 
 # Patch composer
 RUN set -x; \
-    sed -i 's="monolog/monolog": "2.2.0",="monolog/monolog": "^2.2",=g' $MW_HOME/composer.json
+    sed -i 's="monolog/monolog": "2.2.0",="monolog/monolog": "^2.2",=g' "$MW_HOME/composer.json"
 
 # Other patches
 
 # Generate gitinfo.json for core, extensions, and skins so that
 # Special:Version can display git commit hashes after .git is removed
+# hadolint ignore=DL3003,SC2164
 RUN set -x; \
-    cd $MW_HOME \
+    cd "$MW_HOME" || exit \
     && for dir in . extensions/*/ skins/*/; do \
         if [ -d "$dir/.git" ] || [ -f "$dir/.git" ]; then \
             cd "$MW_HOME/$dir" \
@@ -138,45 +143,47 @@ RUN set -x; \
     done
 
 # Cleanup all .git leftovers
+# hadolint ignore=DL3003
 RUN set -x; \
-    cd $MW_HOME \
+    cd "$MW_HOME" \
     && find . \( -name ".git" -o -name ".gitignore" -o -name ".gitmodules" -o -name ".gitattributes" \) -exec rm -rf -- {} +
 
 # Generate sample files for installing extensions and skins in LocalSettings.php
+# hadolint ignore=DL3003,SC2035
 RUN set -x; \
-	cd $MW_HOME/extensions \
-	&& for i in $(ls -d */); do echo "#wfLoadExtension('${i%%/}');"; done > $MW_ORIGIN_FILES/installedExtensions.txt \
-    && cd $MW_HOME/skins \
-	&& for i in $(ls -d */); do echo "#wfLoadSkin('${i%%/}');"; done > $MW_ORIGIN_FILES/installedSkins.txt \
+	cd "$MW_HOME/extensions" \
+	&& for i in $(ls -d */); do echo "#wfLoadExtension('${i%%/}');"; done > "$MW_ORIGIN_FILES/installedExtensions.txt" \
+    && cd "$MW_HOME/skins" \
+	&& for i in $(ls -d */); do echo "#wfLoadSkin('${i%%/}');"; done > "$MW_ORIGIN_FILES/installedSkins.txt" \
     # Load Vector skin by default in the sample file
-    && sed -i "s/#wfLoadSkin('Vector');/wfLoadSkin('Vector');/" $MW_ORIGIN_FILES/installedSkins.txt
+    && sed -i "s/#wfLoadSkin('Vector');/wfLoadSkin('Vector');/" "$MW_ORIGIN_FILES/installedSkins.txt"
 
 # Move files around
 RUN set -x; \
 	# Move files to $MW_ORIGIN_FILES directory
-    mv $MW_HOME/images $MW_ORIGIN_FILES/ \
-    && mv $MW_HOME/cache $MW_ORIGIN_FILES/ \
+    mv "$MW_HOME/images" "$MW_ORIGIN_FILES/" \
+    && mv "$MW_HOME/cache" "$MW_ORIGIN_FILES/" \
     # Move extensions and skins to prefixed directories not intended to be volumed in
-    && mv $MW_HOME/extensions $MW_HOME/canasta-extensions \
-    && mv $MW_HOME/skins $MW_HOME/canasta-skins \
+    && mv "$MW_HOME/extensions" "$MW_HOME/canasta-extensions" \
+    && mv "$MW_HOME/skins" "$MW_HOME/canasta-skins" \
     # Permissions
-    && chown $WWW_USER:$WWW_GROUP -R $MW_HOME/canasta-extensions \
-    && chmod g+w -R $MW_HOME/canasta-extensions \
-    && chown $WWW_USER:$WWW_GROUP -R $MW_HOME/canasta-skins \
-    && chmod g+w -R $MW_HOME/canasta-skins \
+    && chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/canasta-extensions" \
+    && chmod g+w -R "$MW_HOME/canasta-extensions" \
+    && chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/canasta-skins" \
+    && chmod g+w -R "$MW_HOME/canasta-skins" \
     # Create symlinks from $MW_VOLUME to the wiki root for images, cache, and public_assets directories
-    && ln -s $MW_VOLUME/images $MW_HOME/images \
-    && ln -s $MW_VOLUME/cache $MW_HOME/cache \
-    && ln -s $MW_VOLUME/public_assets $MW_HOME/public_assets
+    && ln -s "$MW_VOLUME/images" "$MW_HOME/images" \
+    && ln -s "$MW_VOLUME/cache" "$MW_HOME/cache" \
+    && ln -s "$MW_VOLUME/public_assets" "$MW_HOME/public_assets"
 
 # Create place where extensions and skins symlinks will live
 RUN set -x; \
-    mkdir $MW_HOME/extensions/ \
-    && mkdir $MW_HOME/skins/ \
-	&& chown $WWW_USER:$WWW_GROUP -R $MW_HOME/extensions \
-    && chmod g+w -R $MW_HOME/extensions \
-	&& chown $WWW_USER:$WWW_GROUP -R $MW_HOME/skins \
-    && chmod g+w -R $MW_HOME/skins
+    mkdir "$MW_HOME/extensions/" \
+    && mkdir "$MW_HOME/skins/" \
+	&& chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/extensions" \
+    && chmod g+w -R "$MW_HOME/extensions" \
+	&& chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/skins" \
+    && chmod g+w -R "$MW_HOME/skins"
 
 FROM base AS final
 
@@ -235,8 +242,8 @@ RUN set -x; \
 	chmod -v +x /*.sh \
 	&& chmod -v +x /maintenance-scripts/*.sh \
 	# Sitemap directory
-	&& mkdir -p $MW_ORIGIN_FILES/sitemap \
-	&& ln -s $MW_VOLUME/sitemap $MW_HOME/sitemap \
+	&& mkdir -p "$MW_ORIGIN_FILES/sitemap" \
+	&& ln -s "$MW_VOLUME/sitemap" "$MW_HOME/sitemap" \
 	# Comment out ErrorLog and CustomLog parameters, we use rotatelogs in mediawiki.conf for the log files
 	&& sed -i 's/^\(\s*ErrorLog .*\)/# \1/g' /etc/apache2/apache2.conf \
 	&& sed -i 's/^\(\s*CustomLog .*\)/# \1/g' /etc/apache2/apache2.conf \
