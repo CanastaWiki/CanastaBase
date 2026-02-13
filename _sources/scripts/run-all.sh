@@ -216,7 +216,8 @@ if ! mountpoint -q -- "$MW_LOG"; then
     rsync -avh --ignore-existing "$MW_LOG/" "$MW_VOLUME/log/mediawiki/"
     mv "$MW_LOG" "${MW_LOG}_old"
     ln -s "$MW_VOLUME/log/mediawiki" "$MW_LOG"
-    chmod -R o=rwX "$MW_VOLUME/log/mediawiki"
+    chgrp -R "$WWW_GROUP" "$MW_VOLUME/log/mediawiki"
+    chmod -R g=rwX "$MW_VOLUME/log/mediawiki"
 else
     chgrp -R "$WWW_GROUP" "$MW_LOG"
     chmod -R go=rwX "$MW_LOG"
