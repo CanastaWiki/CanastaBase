@@ -153,17 +153,6 @@ RUN set -x; \
     cd "$MW_HOME" \
     && find . \( -name ".git" -o -name ".gitignore" -o -name ".gitmodules" -o -name ".gitattributes" \) -exec rm -rf -- {} +
 
-# Generate sample files for installing extensions and skins in LocalSettings.php
-# cd switches between extensions/ and skins/; glob is safe here
-# hadolint ignore=DL3003,SC2035
-RUN set -x; \
-	cd "$MW_HOME/extensions" \
-	&& for i in $(ls -d */); do echo "#wfLoadExtension('${i%%/}');"; done > "$MW_ORIGIN_FILES/installedExtensions.txt" \
-    && cd "$MW_HOME/skins" \
-	&& for i in $(ls -d */); do echo "#wfLoadSkin('${i%%/}');"; done > "$MW_ORIGIN_FILES/installedSkins.txt" \
-    # Load Vector skin by default in the sample file
-    && sed -i "s/#wfLoadSkin('Vector');/wfLoadSkin('Vector');/" "$MW_ORIGIN_FILES/installedSkins.txt"
-
 # Move files around
 RUN set -x; \
 	# Move files to $MW_ORIGIN_FILES directory
