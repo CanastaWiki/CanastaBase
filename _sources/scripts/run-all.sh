@@ -154,16 +154,47 @@ fi
 
 echo "Checking for MediaWiki configuration..."
 if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
+  # Snapshot which wikis have SMW set up before run_autoupdate, since
+  # update.php triggers setupStore.php via SMW hooks (creating .smw.json
+  # entries). We need to detect newly-setup wikis to run rebuildData.php.
+  SMW_JSON="$MW_VOLUME/config/smw/.smw.json"
+  if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
+    mkdir -p "$MW_VOLUME/config/smw"
+    SMW_WIKIS_BEFORE=""
+    if [ -f "$SMW_JSON" ]; then
+      SMW_WIKIS_BEFORE=$(php -r "
+        \$data = json_decode(file_get_contents('$SMW_JSON'), true) ?? [];
+        echo implode('\n', array_keys(\$data));
+      ")
+    fi
+  fi
+
   # Run auto-update (LocalSettings.php/CommonSettings.php checks are for backward compatibility)
   . /run-maintenance-scripts.sh
   run_autoupdate
 
-  # Initialize Semantic MediaWiki store if SMW is enabled but not yet set up
+  # Rebuild Semantic MediaWiki data for any wikis that were just set up.
+  # setupStore.php (run by update.php hooks) creates tables but does not
+  # populate them — rebuildData.php is needed for Special:Browse etc.
   if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
-    mkdir -p "$MW_VOLUME/config/smw"
-    if [ ! -f "$MW_VOLUME/config/smw/smw.json" ]; then
-      echo "Initializing Semantic MediaWiki store..."
-      php "$MW_HOME/extensions/SemanticMediaWiki/maintenance/setupStore.php"
+    wiki_ids=$(get_wiki_ids)
+    if [ -n "$wiki_ids" ]; then
+      while IFS= read -r wiki_id; do
+        if [ -n "$wiki_id" ]; then
+          if ! echo "$SMW_WIKIS_BEFORE" | grep -qx "$wiki_id"; then
+            echo "Rebuilding Semantic MediaWiki data for wiki: $wiki_id..."
+            php "$MW_HOME/extensions/SemanticMediaWiki/maintenance/rebuildData.php" --wiki="$wiki_id"
+          fi
+        fi
+      done <<< "$wiki_ids"
+    else
+      if [ -z "$SMW_WIKIS_BEFORE" ]; then
+        # Single wiki: if .smw.json didn't exist before, setupStore just ran
+        if [ -f "$SMW_JSON" ]; then
+          echo "Rebuilding Semantic MediaWiki data..."
+          php "$MW_HOME/extensions/SemanticMediaWiki/maintenance/rebuildData.php"
+        fi
+      fi
     fi
   fi
 fi
