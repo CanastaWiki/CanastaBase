@@ -11,11 +11,11 @@ set -x
 #
 # The Canasta image builds a unified vendor/autoload.php at build time using
 # composer.local.json with merge-plugin includes for specific bundled
-# extensions/skins that have composer dependencies, plus wildcards for
-# user-extensions and user-skins. At runtime, we check whether the user's
-# config/composer.local.json differs from what was used at build time and
-# re-run composer update if so. This picks up new user-extensions with
-# composer.json files and any custom edits to composer.local.json.
+# extensions/skins that have composer dependencies. At runtime, we check
+# whether the user's config/composer.local.json differs from what was used
+# at build time and re-run composer update if so. Users who add extensions
+# with composer dependencies should manually add entries to
+# config/composer.local.json.
 #
 # Behavior based on config/composer.local.json state:
 #   - Missing: build-time autoloader is preserved as-is, no runtime update
