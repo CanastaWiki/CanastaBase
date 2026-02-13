@@ -18,7 +18,7 @@ LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
       wiki.canasta.mediawiki.branch="$MW_VERSION"
 
 # System setup
-# hadolint ignore=DL3008
+# hadolint ignore=DL3008 -- pinning system package versions is impractical on Debian
 RUN set x; \
 	apt-get clean \
 	&& apt-get update \
@@ -97,7 +97,7 @@ RUN set -x; \
 	curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
     && composer self-update 2.1.3
 
-# hadolint ignore=DL3008
+# hadolint ignore=DL3008 -- pinning system package versions is impractical on Debian
 RUN set -x; \
 	# Preconfigure Postfix to avoid the interactive prompt
 	echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections \
@@ -111,7 +111,7 @@ COPY main.cf /etc/postfix/main.cf
 FROM base AS source
 
 # MediaWiki core
-# hadolint ignore=DL3003
+# hadolint ignore=DL3003 -- cd is used within a multi-command && chain
 RUN set -x; \
 	git clone --depth 1 -b "$MW_CORE_VERSION" https://github.com/wikimedia/mediawiki "$MW_HOME" \
 	&& cd "$MW_HOME" \
@@ -125,7 +125,7 @@ RUN set -x; \
 
 # Generate gitinfo.json for core, extensions, and skins so that
 # Special:Version can display git commit hashes after .git is removed
-# hadolint ignore=DL3003,SC2164
+# hadolint ignore=DL3003,SC2164 -- cd is used within a loop that returns to $MW_HOME
 RUN set -x; \
     cd "$MW_HOME" || exit \
     && for dir in . extensions/*/ skins/*/; do \
@@ -143,13 +143,13 @@ RUN set -x; \
     done
 
 # Cleanup all .git leftovers
-# hadolint ignore=DL3003
+# hadolint ignore=DL3003 -- cd is used within a multi-command && chain
 RUN set -x; \
     cd "$MW_HOME" \
     && find . \( -name ".git" -o -name ".gitignore" -o -name ".gitmodules" -o -name ".gitattributes" \) -exec rm -rf -- {} +
 
 # Generate sample files for installing extensions and skins in LocalSettings.php
-# hadolint ignore=DL3003,SC2035
+# hadolint ignore=DL3003,SC2035 -- cd switches between extensions/ and skins/; glob is safe here
 RUN set -x; \
 	cd "$MW_HOME/extensions" \
 	&& for i in $(ls -d */); do echo "#wfLoadExtension('${i%%/}');"; done > "$MW_ORIGIN_FILES/installedExtensions.txt" \
