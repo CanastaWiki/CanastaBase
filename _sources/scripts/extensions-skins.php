@@ -50,11 +50,9 @@ foreach (['extensions', 'skins'] as $type) {
             $packageVersion = $data['composer-version'] ?? null;
             $packageString = $packageVersion ? "$packageName:$packageVersion" : $packageName;
             exec("composer require $packageString --working-dir=$MW_HOME --no-interaction");
-            continue;
         }
 
-
-        if (!$bundled) {
+        if (!$bundled && !($data['composer-name'] ?? null)) {
             $gitCloneCmd = "git clone ";
 
             if ($repository === null) {
