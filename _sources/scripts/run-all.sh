@@ -10,10 +10,11 @@ set -x
 # Unified composer autoloader
 #
 # The Canasta image builds a unified vendor/autoload.php at build time using
-# composer.local.json with merge-plugin globs (extensions/*/composer.json,
-# skins/*/composer.json). At runtime, we check whether the user's
+# composer.local.json with merge-plugin includes for specific bundled
+# extensions/skins that have composer dependencies, plus wildcards for
+# user-extensions and user-skins. At runtime, we check whether the user's
 # config/composer.local.json differs from what was used at build time and
-# re-run composer update if so. This picks up user-extensions with
+# re-run composer update if so. This picks up new user-extensions with
 # composer.json files and any custom edits to composer.local.json.
 #
 # Behavior based on config/composer.local.json state:
@@ -36,9 +37,12 @@ fi
 if [ "$HAS_GLOBS" = "true" ]; then
   cp "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"
   CURRENT_HASH=$(php -r '
+    $clj = json_decode(file_get_contents("'"$MW_HOME"'/composer.local.json"), true);
+    $patterns = $clj["extra"]["merge-plugin"]["include"] ?? [];
     $files = ["'"$MW_HOME"'/composer.local.json"];
-    foreach (glob("'"$MW_HOME"'/extensions/*/composer.json") as $f) $files[] = $f;
-    foreach (glob("'"$MW_HOME"'/skins/*/composer.json") as $f) $files[] = $f;
+    foreach ($patterns as $p) {
+      foreach (glob("'"$MW_HOME"'/" . $p) as $f) $files[] = $f;
+    }
     sort($files);
     $h = "";
     foreach ($files as $f) $h .= md5_file($f);

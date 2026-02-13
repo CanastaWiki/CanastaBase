@@ -21,6 +21,9 @@ $contentsData = [
     'skins' => []
 ];
 
+// Track extensions/skins that need composer dependencies merged
+$composerIncludes = [];
+
 populateContentsData($path, $contentsData);
 
 foreach (['extensions', 'skins'] as $type) {
@@ -81,6 +84,7 @@ foreach (['extensions', 'skins'] as $type) {
                 if ($step === "composer update") {
                     // Skip per-extension composer install; dependencies will be
                     // resolved by the unified root-level composer update below.
+                    $composerIncludes[] = "$type/$name/composer.json";
                     echo "Skipping per-extension composer install for $name (will use unified autoloader)\n";
                 } elseif ($step === "git submodule update") {
                     $submoduleUpdateCmd = "cd $MW_HOME/canasta-$type/$name && git submodule update --init";
@@ -122,8 +126,8 @@ foreach (['extensions', 'skins'] as $type) {
 // Create build-time symlinks in extensions/ and skins/ pointing to
 // canasta-extensions/ and canasta-skins/. This mirrors what create-symlinks.sh
 // does at runtime, but without user-extensions/user-skins (which don't exist
-// at build time). This lets us use the same extensions/*/composer.json globs
-// at both build time and runtime.
+// at build time). The symlinks let composer.local.json reference extensions by
+// their canonical extensions/Name/ path at both build time and runtime.
 echo "Creating build-time symlinks for canasta extensions and skins...\n";
 foreach (['extensions' => 'canasta-extensions', 'skins' => 'canasta-skins'] as $target => $source) {
     foreach (glob("$MW_HOME/$source/*", GLOB_ONLYDIR) as $dir) {
@@ -135,16 +139,18 @@ foreach (['extensions' => 'canasta-extensions', 'skins' => 'canasta-skins'] as $
     }
 }
 
-// Create composer.local.json with merge-plugin globs. The extensions/ and skins/
-// directories contain symlinks to canasta-extensions/, canasta-skins/, and (at
-// runtime) user-extensions/ and user-skins/, so these two globs cover everything.
+// Create composer.local.json with specific entries for bundled extensions/skins
+// that have composer dependencies, plus wildcards for user-extensions/skins.
+// We use specific entries rather than extensions/*/composer.json wildcards to
+// avoid broken composer.json files in extensions that don't need composer.
+$allIncludes = array_merge($composerIncludes, [
+    'user-extensions/*/composer.json',
+    'user-skins/*/composer.json',
+]);
 $composerLocal = [
     'extra' => [
         'merge-plugin' => [
-            'include' => [
-                'extensions/*/composer.json',
-                'skins/*/composer.json',
-            ]
+            'include' => $allIncludes
         ]
     ]
 ];
@@ -164,14 +170,13 @@ if ($composerReturnCode !== 0) {
     echo "WARNING: composer update exited with code $composerReturnCode\n";
 }
 
-// Save a hash of composer.local.json + all resolved extension/skin composer.json
-// files so run-all.sh can detect changes at runtime.
+// Save a hash of composer.local.json + all referenced extension/skin
+// composer.json files so run-all.sh can detect changes at runtime.
 $hashFiles = ["$MW_HOME/composer.local.json"];
-foreach (glob("$MW_HOME/extensions/*/composer.json") as $f) {
-    $hashFiles[] = $f;
-}
-foreach (glob("$MW_HOME/skins/*/composer.json") as $f) {
-    $hashFiles[] = $f;
+foreach ($allIncludes as $pattern) {
+    foreach (glob("$MW_HOME/$pattern") as $f) {
+        $hashFiles[] = $f;
+    }
 }
 sort($hashFiles);
 $combinedHash = '';
