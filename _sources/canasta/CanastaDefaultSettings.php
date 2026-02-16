@@ -176,3 +176,36 @@ if ( $filenames !== false && is_array( $filenames ) ) {
 if ( file_exists( getenv( 'MW_VOLUME' ) . '/config/wikis.yaml' ) ) {
 	require_once "$IP/FarmConfigLoader.php";
 }
+
+/**
+ * Show a warning to users if $wgSMTP is not set.
+ */
+$wgHooks['SiteNoticeAfter'][] = function ( &$siteNotice, Skin $skin ) {
+	global $wgSMTP, $wgEnableEmail, $wgEnableUserEmail;
+
+	if ( !$wgEnableEmail || $wgSMTP ) {
+		return;
+	}
+	$title = $skin->getTitle();
+	if ( !$title->isSpecialPage() ) {
+		return;
+	}
+	$specialPage = MediaWiki\MediaWikiServices::getInstance()
+		->getSpecialPageFactory()
+		->getPage( $title->getText() );
+	if ( $specialPage == null ) {
+		return;
+	}
+	$canonicalName = $specialPage->getName();
+	// Only display this warning for pages that could result in an email getting sent.
+	$specialPagesWithEmail = [ 'Preferences', 'CreateAccount' ];
+	if ( $wgEnableUserEmail ) {
+		$specialPagesWithEmail[] = 'Emailuser';
+	}
+	if ( !in_array( $canonicalName, $specialPagesWithEmail ) ) {
+		return;
+	}
+
+	$warningText = 'Please note that mailing does not currently work on this wiki, because Canasta requires <a href="https://www.mediawiki.org/wiki/Manual:$wgSMTP">$wgSMTP</a> to be set in order to send emails.';
+	$siteNotice .= Html::warningBox( '<span style="font-size: larger;">' . $warningText . '</span>' );
+};
