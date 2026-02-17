@@ -5,8 +5,6 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 	exit;
 }
 
-require_once "{$IP}/CanastaUtils.php";
-
 $canastaLocalSettingsFilePath = getenv( 'MW_VOLUME' ) . '/config/LocalSettings.php';
 $canastaCommonSettingsFilePath = getenv( 'MW_VOLUME' ) . '/config/CommonSettings.php';
 
