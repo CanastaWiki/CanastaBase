@@ -36,12 +36,13 @@ if ( !empty( $enableSitemapEnv ) && in_array( $enableSitemapEnv, [ 'true', 'True
 				     $wikiUrlNoPort === $serverName ||
 				     $wikiUrlNoPort === $serverNameNoPort ) {
 					$wikiId = $wiki['id'];
+					$wikiSitemap = $wiki['sitemap'] ?? false;
 					break;
 				}
 			}
 		}
 
-		if ( $wikiId ) {
+		if ( $wikiId && $wikiSitemap ) {
 			$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
 			$siteMapUrl = "$scheme://$serverName$script/public_assets/sitemap/sitemap-index-$wikiId.xml";
 			echo "Sitemap: $siteMapUrl\n";
