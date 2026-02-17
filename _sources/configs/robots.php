@@ -1,6 +1,5 @@
 <?php
 # This file pretends to be a /robots.txt file (via Apache rewrite, see configs/mediawiki.conf)
-# Sitemap URL pattern is ${SITE_SERVER}${SCRIPT_PATH}/sitemap${SITEMAP_DIR}/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
 
 ini_set( 'display_errors', 0 );
 error_reporting( 0 );
@@ -17,14 +16,45 @@ if ( !empty( $robotsDisallowed ) && in_array( strtolower($robotsDisallowed), [ '
 $enableSitemapEnv = getenv( 'MW_ENABLE_SITEMAP_GENERATOR');
 // match the value check to the isTrue function at _sources/scripts/functions.sh
 if ( !empty( $enableSitemapEnv ) && in_array( $enableSitemapEnv, [ 'true', 'True', 'TRUE', '1' ] ) ) {
-	$server = getenv( 'MW_SITE_SERVER' );
 	$script = shell_exec( 'php /getMediawikiSettings.php --variable="wgScriptPath" --format="string"' );
-	$subdir = getenv( 'MW_SITEMAP_SUBDIR' );
-	$identifier = getenv( 'MW_SITEMAP_IDENTIFIER' );
 
-	$siteMapUrl = "$server$script/sitemap$subdir/sitemap-index-$identifier.xml";
+	// Determine wiki ID and server from wikis.yaml (wiki farm)
+	$wikisYaml = '/mediawiki/config/wikis.yaml';
+	if ( file_exists( $wikisYaml ) ) {
+		$config = yaml_parse_file( $wikisYaml );
+		$serverName = $_SERVER['HTTP_HOST'] ?? 'localhost';
+		$serverNameNoPort = preg_replace( '/:.*$/', '', $serverName );
+		$wikiId = null;
 
-	echo "Sitemap: $siteMapUrl\n";
+		if ( isset( $config['wikis'] ) ) {
+			foreach ( $config['wikis'] as $wiki ) {
+				$wikiUrl = $wiki['url'] ?? '';
+				$wikiUrlNoPort = preg_replace( '/:.*$/', '', $wikiUrl );
+
+				if ( $wikiUrl === $serverName ||
+				     $wikiUrl === $serverNameNoPort ||
+				     $wikiUrlNoPort === $serverName ||
+				     $wikiUrlNoPort === $serverNameNoPort ) {
+					$wikiId = $wiki['id'];
+					break;
+				}
+			}
+		}
+
+		if ( $wikiId ) {
+			$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
+			$siteMapUrl = "$scheme://$serverName$script/public_assets/sitemap/sitemap-index-$wikiId.xml";
+			echo "Sitemap: $siteMapUrl\n";
+		}
+	} else {
+		// Legacy single-wiki: use env vars
+		$server = getenv( 'MW_SITE_SERVER' );
+		$subdir = getenv( 'MW_SITEMAP_SUBDIR' );
+		$identifier = getenv( 'MW_SITEMAP_IDENTIFIER' );
+		$siteMapUrl = "$server$script/sitemap$subdir/sitemap-index-$identifier.xml";
+		echo "Sitemap: $siteMapUrl\n";
+	}
+
     echo "\n# Content of the robots.txt file:\n";
 }
 

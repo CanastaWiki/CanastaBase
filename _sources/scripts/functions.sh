@@ -74,3 +74,21 @@ make_dir_writable() {
          ')' \
          -exec chgrp "$WWW_GROUP" {} \; -exec chmod g=rwX {} \;
 }
+
+get_wiki_ids() {
+    # Get all wiki IDs from wikis.yaml
+    # Returns one wiki ID per line, or empty if wikis.yaml doesn't exist
+    local wikis_yaml="$MW_VOLUME/config/wikis.yaml"
+    if [ -f "$wikis_yaml" ]; then
+        php -r "
+            \$config = yaml_parse_file('$wikis_yaml');
+            if (\$config && isset(\$config['wikis'])) {
+                foreach (\$config['wikis'] as \$wiki) {
+                    if (isset(\$wiki['id'])) {
+                        echo \$wiki['id'] . \"\\n\";
+                    }
+                }
+            }
+        "
+    fi
+}

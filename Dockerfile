@@ -198,8 +198,6 @@ ENV MW_AUTOUPDATE=true \
 	MW_MAP_DOMAIN_TO_DOCKER_GATEWAY=true \
 	MW_ENABLE_SITEMAP_GENERATOR=false \
 	MW_SITEMAP_PAUSE_DAYS=1 \
-	MW_SITEMAP_SUBDIR="" \
-	MW_SITEMAP_IDENTIFIER="mediawiki" \
 	PHP_UPLOAD_MAX_FILESIZE=10M \
 	PHP_POST_MAX_SIZE=10M \
 	PHP_MAX_INPUT_VARS=1000 \
@@ -236,9 +234,6 @@ COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 RUN set -x; \
 	chmod -v +x /*.sh \
 	&& chmod -v +x /maintenance-scripts/*.sh \
-	# Sitemap directory
-	&& mkdir -p "$MW_ORIGIN_FILES/sitemap" \
-	&& ln -s "$MW_VOLUME/sitemap" "$MW_HOME/sitemap" \
 	# Comment out ErrorLog and CustomLog parameters, we use rotatelogs in mediawiki.conf for the log files
 	&& sed -i 's/^\(\s*ErrorLog .*\)/# \1/g' /etc/apache2/apache2.conf \
 	&& sed -i 's/^\(\s*CustomLog .*\)/# \1/g' /etc/apache2/apache2.conf \
