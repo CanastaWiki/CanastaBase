@@ -164,7 +164,7 @@ run_maintenance_scripts() {
 # Naming convention:
 # Scripts with names starting with "mw_" have corresponding enable variables.
 # The enable variable is formed by converting the script's name to uppercase and replacing the first underscore with "_ENABLE_".
-# For example, the enable variable for "mw_sitemap_generator.sh" would be "MW_ENABLE_SITEMAP_GENERATOR".
+# For example, the enable variable for "mw_job_runner.sh" would be "MW_ENABLE_JOB_RUNNER".
 
 run_mw_script() {
   sleep 3
