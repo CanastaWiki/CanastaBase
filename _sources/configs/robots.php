@@ -36,13 +36,14 @@ if ( !empty( $enableSitemapEnv ) && in_array( $enableSitemapEnv, [ 'true', 'True
 				     $wikiUrlNoPort === $serverName ||
 				     $wikiUrlNoPort === $serverNameNoPort ) {
 					$wikiId = $wiki['id'];
-					$wikiSitemap = $wiki['sitemap'] ?? false;
 					break;
 				}
 			}
 		}
 
-		if ( $wikiId && $wikiSitemap ) {
+		// Only advertise sitemap if sitemap files exist for this wiki
+		$sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
+		if ( $wikiId && is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
 			$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
 			$siteMapUrl = "$scheme://$serverName$script/public_assets/sitemap/sitemap-index-$wikiId.xml";
 			echo "Sitemap: $siteMapUrl\n";

@@ -58,22 +58,22 @@ while true; do
     # Get wiki IDs and URLs from wikis.yaml
     WIKIS_YAML="$MW_VOLUME/config/wikis.yaml"
     if [ -f "$WIKIS_YAML" ]; then
-        # Wiki farm: generate sitemap for each wiki that has sitemap enabled
+        # Wiki farm: regenerate sitemaps for wikis that already have sitemap files
         wiki_data=$(php -r "
             \$config = yaml_parse_file('$WIKIS_YAML');
             if (\$config && isset(\$config['wikis'])) {
                 foreach (\$config['wikis'] as \$wiki) {
                     \$id = \$wiki['id'] ?? '';
                     \$url = \$wiki['url'] ?? '';
-                    \$sitemap = \$wiki['sitemap'] ?? false;
-                    if (\$id !== '' && \$sitemap) {
+                    \$dir = '$MW_HOME/public_assets/' . \$id . '/sitemap';
+                    if (\$id !== '' && is_dir(\$dir) && count(glob(\$dir . '/*')) > 0) {
                         echo \$id . \"\t\" . \$url . \"\n\";
                     }
                 }
             }
         ")
         if [ -z "$wiki_data" ]; then
-            echo "No wikis have sitemap enabled, skipping." >> "$logfileNow"
+            echo "No wikis have sitemaps, skipping." >> "$logfileNow"
         fi
         while IFS=$'\t' read -r wiki_id wiki_url; do
             if [ -z "$wiki_id" ]; then
