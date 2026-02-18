@@ -12,8 +12,6 @@ fi
 # Convert to seconds (suffixed sleep command has issues on OSX)
 SLEEP_DAYS=$((MW_SITEMAP_PAUSE_DAYS * 60 * 60 * 24))
 
-SCRIPT_PATH=$(get_mediawiki_variable wgScriptPath)
-
 # Get the URL scheme from MW_SITE_SERVER (e.g. "https://")
 URL_SCHEME=$(echo "$MW_SITE_SERVER" | grep -oP '^https?://')
 if [ -z "$URL_SCHEME" ]; then
@@ -31,7 +29,7 @@ generate_sitemap_for_wiki() {
     php "$SCRIPT" \
       --wiki="$wiki_id" \
       --fspath="$fspath" \
-      --urlpath="$SCRIPT_PATH/public_assets/sitemap" \
+      --urlpath="/public_assets/sitemap" \
       --compress yes \
       --server="$server" \
       --skip-redirects \

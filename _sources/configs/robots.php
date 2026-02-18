@@ -38,9 +38,8 @@ if ( $config && isset( $config['wikis'] ) ) {
 // Only advertise sitemap if sitemap files exist for this wiki
 $sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
 if ( $wikiId && is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
-	$script = shell_exec( 'php /getMediawikiSettings.php --variable="wgScriptPath" --format="string"' );
 	$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
-	$siteMapUrl = "$scheme://$serverName$script/public_assets/sitemap/sitemap-index-$wikiId.xml";
+	$siteMapUrl = "$scheme://$serverName/public_assets/sitemap/sitemap-index-$wikiId.xml";
 	echo "Sitemap: $siteMapUrl\n";
 }
 
