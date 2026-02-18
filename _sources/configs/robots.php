@@ -13,34 +13,34 @@ if ( !empty( $robotsDisallowed ) && in_array( strtolower($robotsDisallowed), [ '
 	die( "User-agent: *\nDisallow: /\n" );
 }
 
-// Determine wiki ID from wikis.yaml based on request host
+// Advertise sitemaps for all wikis on this domain that have sitemap files
 $wikisYaml = '/mediawiki/config/wikis.yaml';
 $config = file_exists( $wikisYaml ) ? yaml_parse_file( $wikisYaml ) : null;
 $serverName = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $serverNameNoPort = preg_replace( '/:.*$/', '', $serverName );
-$wikiId = null;
+$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
 
 if ( $config && isset( $config['wikis'] ) ) {
 	foreach ( $config['wikis'] as $wiki ) {
 		$wikiUrl = $wiki['url'] ?? '';
-		$wikiUrlNoPort = preg_replace( '/:.*$/', '', $wikiUrl );
+		// Extract domain part (before first /) for matching
+		$slashPos = strpos( $wikiUrl, '/' );
+		$wikiDomain = $slashPos !== false ? substr( $wikiUrl, 0, $slashPos ) : $wikiUrl;
+		$wikiDomainNoPort = preg_replace( '/:.*$/', '', $wikiDomain );
+		$wikiPath = $slashPos !== false ? substr( $wikiUrl, $slashPos ) : '';
 
-		if ( $wikiUrl === $serverName ||
-		     $wikiUrl === $serverNameNoPort ||
-		     $wikiUrlNoPort === $serverName ||
-		     $wikiUrlNoPort === $serverNameNoPort ) {
+		if ( $wikiDomain === $serverName ||
+		     $wikiDomain === $serverNameNoPort ||
+		     $wikiDomainNoPort === $serverName ||
+		     $wikiDomainNoPort === $serverNameNoPort ) {
 			$wikiId = $wiki['id'];
-			break;
+			$sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
+			if ( is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
+				$siteMapUrl = "$scheme://$serverName$wikiPath/public_assets/sitemap/sitemap-index-$wikiId.xml";
+				echo "Sitemap: $siteMapUrl\n";
+			}
 		}
 	}
-}
-
-// Only advertise sitemap if sitemap files exist for this wiki
-$sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
-if ( $wikiId && is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
-	$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
-	$siteMapUrl = "$scheme://$serverName/public_assets/sitemap/sitemap-index-$wikiId.xml";
-	echo "Sitemap: $siteMapUrl\n";
 }
 
 readfile( 'robots-main.txt' );
