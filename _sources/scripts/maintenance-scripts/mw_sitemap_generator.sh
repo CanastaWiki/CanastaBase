@@ -57,52 +57,42 @@ while true; do
 
     # Get wiki IDs and URLs from wikis.yaml
     WIKIS_YAML="$MW_VOLUME/config/wikis.yaml"
-    if [ -f "$WIKIS_YAML" ]; then
-        # Wiki farm: regenerate sitemaps for wikis that already have sitemap files
-        wiki_data=$(php -r "
-            \$config = yaml_parse_file('$WIKIS_YAML');
-            if (\$config && isset(\$config['wikis'])) {
-                foreach (\$config['wikis'] as \$wiki) {
-                    \$id = \$wiki['id'] ?? '';
-                    \$url = \$wiki['url'] ?? '';
-                    \$dir = '$MW_HOME/public_assets/' . \$id . '/sitemap';
-                    if (\$id !== '' && is_dir(\$dir) && count(glob(\$dir . '/*')) > 0) {
-                        echo \$id . \"\t\" . \$url . \"\n\";
-                    }
+    if [ ! -f "$WIKIS_YAML" ]; then
+        echo "wikis.yaml not found, skipping." >> "$logfileNow"
+        echo "mwsitemapgen waits for $SLEEP_DAYS seconds..." >> "$logfileNow"
+        sleep "$SLEEP_DAYS"
+        continue
+    fi
+
+    # Regenerate sitemaps for wikis that already have sitemap files
+    wiki_data=$(php -r "
+        \$config = yaml_parse_file('$WIKIS_YAML');
+        if (\$config && isset(\$config['wikis'])) {
+            foreach (\$config['wikis'] as \$wiki) {
+                \$id = \$wiki['id'] ?? '';
+                \$url = \$wiki['url'] ?? '';
+                \$dir = '$MW_HOME/public_assets/' . \$id . '/sitemap';
+                if (\$id !== '' && is_dir(\$dir) && count(glob(\$dir . '/*')) > 0) {
+                    echo \$id . \"\t\" . \$url . \"\n\";
                 }
             }
-        ")
-        if [ -z "$wiki_data" ]; then
-            echo "No wikis have sitemaps, skipping." >> "$logfileNow"
-        fi
-        while IFS=$'\t' read -r wiki_id wiki_url; do
-            if [ -z "$wiki_id" ]; then
-                continue
-            fi
-            # Build server URL from wiki's url field and the configured scheme
-            if [ -n "$wiki_url" ]; then
-                server="${URL_SCHEME}${wiki_url}"
-            else
-                server="$MW_SITE_SERVER"
-            fi
-            generate_sitemap_for_wiki "$wiki_id" "$server" "$logfileNow"
-        done <<< "$wiki_data"
-    else
-        # Single wiki (legacy): generate one sitemap
-        SITE_SERVER=$(get_mediawiki_variable wgServer)
-        if [[ $SITE_SERVER == "//"* ]]; then
-            SITE_SERVER="https:$SITE_SERVER"
-        fi
-        echo "Generating sitemap..." >> "$logfileNow"
-        php "$SCRIPT" \
-          --fspath="$MW_HOME/sitemap" \
-          --urlpath="$SCRIPT_PATH/sitemap" \
-          --compress yes \
-          --server="$SITE_SERVER" \
-          --skip-redirects \
-          --identifier="${MW_SITEMAP_IDENTIFIER:-mediawiki}" \
-          >> "$logfileNow" 2>&1
+        }
+    ")
+    if [ -z "$wiki_data" ]; then
+        echo "No wikis have sitemaps, skipping." >> "$logfileNow"
     fi
+    while IFS=$'\t' read -r wiki_id wiki_url; do
+        if [ -z "$wiki_id" ]; then
+            continue
+        fi
+        # Build server URL from wiki's url field and the configured scheme
+        if [ -n "$wiki_url" ]; then
+            server="${URL_SCHEME}${wiki_url}"
+        else
+            server="$MW_SITE_SERVER"
+        fi
+        generate_sitemap_for_wiki "$wiki_id" "$server" "$logfileNow"
+    done <<< "$wiki_data"
 
     echo "mwsitemapgen waits for $SLEEP_DAYS seconds..." >> "$logfileNow"
     sleep "$SLEEP_DAYS"
