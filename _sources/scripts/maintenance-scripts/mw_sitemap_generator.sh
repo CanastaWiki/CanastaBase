@@ -27,9 +27,6 @@ generate_sitemap_for_wiki() {
     local log="$3"
     local fspath="$MW_HOME/public_assets/$wiki_id/sitemap"
 
-    mkdir -p "$fspath"
-    chown "$WWW_USER:$WWW_GROUP" "$fspath"
-
     echo "Generating sitemap for wiki: $wiki_id (server: $server)" >> "$log"
     php "$SCRIPT" \
       --wiki="$wiki_id" \

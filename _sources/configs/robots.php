@@ -13,42 +13,35 @@ if ( !empty( $robotsDisallowed ) && in_array( strtolower($robotsDisallowed), [ '
 	die( "User-agent: *\nDisallow: /\n" );
 }
 
-$enableSitemapEnv = getenv( 'MW_ENABLE_SITEMAP_GENERATOR');
-// match the value check to the isTrue function at _sources/scripts/functions.sh
-if ( !empty( $enableSitemapEnv ) && in_array( $enableSitemapEnv, [ 'true', 'True', 'TRUE', '1' ] ) ) {
-	$script = shell_exec( 'php /getMediawikiSettings.php --variable="wgScriptPath" --format="string"' );
+// Determine wiki ID from wikis.yaml based on request host
+$wikisYaml = '/mediawiki/config/wikis.yaml';
+$config = file_exists( $wikisYaml ) ? yaml_parse_file( $wikisYaml ) : null;
+$serverName = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$serverNameNoPort = preg_replace( '/:.*$/', '', $serverName );
+$wikiId = null;
 
-	// Determine wiki ID from wikis.yaml based on request host
-	$wikisYaml = '/mediawiki/config/wikis.yaml';
-	$config = file_exists( $wikisYaml ) ? yaml_parse_file( $wikisYaml ) : null;
-	$serverName = $_SERVER['HTTP_HOST'] ?? 'localhost';
-	$serverNameNoPort = preg_replace( '/:.*$/', '', $serverName );
-	$wikiId = null;
+if ( $config && isset( $config['wikis'] ) ) {
+	foreach ( $config['wikis'] as $wiki ) {
+		$wikiUrl = $wiki['url'] ?? '';
+		$wikiUrlNoPort = preg_replace( '/:.*$/', '', $wikiUrl );
 
-	if ( $config && isset( $config['wikis'] ) ) {
-		foreach ( $config['wikis'] as $wiki ) {
-			$wikiUrl = $wiki['url'] ?? '';
-			$wikiUrlNoPort = preg_replace( '/:.*$/', '', $wikiUrl );
-
-			if ( $wikiUrl === $serverName ||
-			     $wikiUrl === $serverNameNoPort ||
-			     $wikiUrlNoPort === $serverName ||
-			     $wikiUrlNoPort === $serverNameNoPort ) {
-				$wikiId = $wiki['id'];
-				break;
-			}
+		if ( $wikiUrl === $serverName ||
+		     $wikiUrl === $serverNameNoPort ||
+		     $wikiUrlNoPort === $serverName ||
+		     $wikiUrlNoPort === $serverNameNoPort ) {
+			$wikiId = $wiki['id'];
+			break;
 		}
 	}
+}
 
-	// Only advertise sitemap if sitemap files exist for this wiki
-	$sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
-	if ( $wikiId && is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
-		$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
-		$siteMapUrl = "$scheme://$serverName$script/public_assets/sitemap/sitemap-index-$wikiId.xml";
-		echo "Sitemap: $siteMapUrl\n";
-	}
-
-    echo "\n# Content of the robots.txt file:\n";
+// Only advertise sitemap if sitemap files exist for this wiki
+$sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
+if ( $wikiId && is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
+	$script = shell_exec( 'php /getMediawikiSettings.php --variable="wgScriptPath" --format="string"' );
+	$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
+	$siteMapUrl = "$scheme://$serverName$script/public_assets/sitemap/sitemap-index-$wikiId.xml";
+	echo "Sitemap: $siteMapUrl\n";
 }
 
 readfile( 'robots-main.txt' );
