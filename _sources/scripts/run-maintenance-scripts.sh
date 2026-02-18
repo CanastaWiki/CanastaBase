@@ -114,24 +114,6 @@ run_maintenance_script_if_needed () {
     fi
 }
 
-get_wiki_ids() {
-    # Get all wiki IDs from wikis.yaml
-    # Returns one wiki ID per line, or empty if wikis.yaml doesn't exist
-    local wikis_yaml="$MW_VOLUME/config/wikis.yaml"
-    if [ -f "$wikis_yaml" ]; then
-        php -r "
-            \$config = yaml_parse_file('$wikis_yaml');
-            if (\$config && isset(\$config['wikis'])) {
-                foreach (\$config['wikis'] as \$wiki) {
-                    if (isset(\$wiki['id'])) {
-                        echo \$wiki['id'] . \"\\n\";
-                    }
-                }
-            }
-        "
-    fi
-}
-
 run_autoupdate () {
     echo >&2 'Check for the need to run maintenance scripts'
 
@@ -182,7 +164,7 @@ run_maintenance_scripts() {
 # Naming convention:
 # Scripts with names starting with "mw_" have corresponding enable variables.
 # The enable variable is formed by converting the script's name to uppercase and replacing the first underscore with "_ENABLE_".
-# For example, the enable variable for "mw_sitemap_generator.sh" would be "MW_ENABLE_SITEMAP_GENERATOR".
+# For example, the enable variable for "mw_job_runner.sh" would be "MW_ENABLE_JOB_RUNNER".
 
 run_mw_script() {
   sleep 3

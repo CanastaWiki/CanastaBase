@@ -15,6 +15,9 @@ RewriteRule ^/?w/canasta_img.php/ - [L]
 # Redirects requests to public_assets.php for serving public assets in Canasta.
 RewriteRule ^/?w/public_assets.php/ - [L]
 
+# Artificial robots.txt file
+RewriteRule ^/?robots\.txt$ robots.php [NC,L]
+
 # Redirect / to Main Page
 RewriteRule ^/*$ %{DOCUMENT_ROOT}/w/index.php [L]
 

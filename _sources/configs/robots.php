@@ -1,6 +1,5 @@
 <?php
 # This file pretends to be a /robots.txt file (via Apache rewrite, see configs/mediawiki.conf)
-# Sitemap URL pattern is ${SITE_SERVER}${SCRIPT_PATH}/sitemap${SITEMAP_DIR}/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
 
 ini_set( 'display_errors', 0 );
 error_reporting( 0 );
@@ -14,18 +13,34 @@ if ( !empty( $robotsDisallowed ) && in_array( strtolower($robotsDisallowed), [ '
 	die( "User-agent: *\nDisallow: /\n" );
 }
 
-$enableSitemapEnv = getenv( 'MW_ENABLE_SITEMAP_GENERATOR');
-// match the value check to the isTrue function at _sources/scripts/functions.sh
-if ( !empty( $enableSitemapEnv ) && in_array( $enableSitemapEnv, [ 'true', 'True', 'TRUE', '1' ] ) ) {
-	$server = getenv( 'MW_SITE_SERVER' );
-	$script = shell_exec( 'php /getMediawikiSettings.php --variable="wgScriptPath" --format="string"' );
-	$subdir = getenv( 'MW_SITEMAP_SUBDIR' );
-	$identifier = getenv( 'MW_SITEMAP_IDENTIFIER' );
+// Advertise sitemaps for all wikis on this domain that have sitemap files
+$wikisYaml = '/mediawiki/config/wikis.yaml';
+$config = file_exists( $wikisYaml ) ? yaml_parse_file( $wikisYaml ) : null;
+$serverName = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$serverNameNoPort = preg_replace( '/:.*$/', '', $serverName );
+$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
 
-	$siteMapUrl = "$server$script/sitemap$subdir/sitemap-index-$identifier.xml";
+if ( $config && isset( $config['wikis'] ) ) {
+	foreach ( $config['wikis'] as $wiki ) {
+		$wikiUrl = $wiki['url'] ?? '';
+		// Extract domain part (before first /) for matching
+		$slashPos = strpos( $wikiUrl, '/' );
+		$wikiDomain = $slashPos !== false ? substr( $wikiUrl, 0, $slashPos ) : $wikiUrl;
+		$wikiDomainNoPort = preg_replace( '/:.*$/', '', $wikiDomain );
+		$wikiPath = $slashPos !== false ? substr( $wikiUrl, $slashPos ) : '';
 
-	echo "Sitemap: $siteMapUrl\n";
-    echo "\n# Content of the robots.txt file:\n";
+		if ( $wikiDomain === $serverName ||
+		     $wikiDomain === $serverNameNoPort ||
+		     $wikiDomainNoPort === $serverName ||
+		     $wikiDomainNoPort === $serverNameNoPort ) {
+			$wikiId = $wiki['id'];
+			$sitemapDir = "/mediawiki/public_assets/$wikiId/sitemap";
+			if ( is_dir( $sitemapDir ) && count( glob( "$sitemapDir/*" ) ) > 0 ) {
+				$siteMapUrl = "$scheme://$serverName$wikiPath/public_assets/sitemap/sitemap-index-$wikiId.xml";
+				echo "Sitemap: $siteMapUrl\n";
+			}
+		}
+	}
 }
 
 readfile( 'robots-main.txt' );

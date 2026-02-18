@@ -108,6 +108,8 @@ $mimeTypes = [
     'ttf' => 'font/ttf',
     'otf' => 'font/otf',
     'eot' => 'application/vnd.ms-fontobject',
+    'xml' => 'application/xml',
+    'gz' => 'application/gzip',
 ];
 $ext = strtolower( pathinfo( $realPath, PATHINFO_EXTENSION ) );
 $contentType = $mimeTypes[$ext] ?? 'application/octet-stream';
