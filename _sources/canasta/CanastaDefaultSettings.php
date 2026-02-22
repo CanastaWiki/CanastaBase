@@ -99,7 +99,7 @@ $wgDBssl = false;
 $wgDBTableOptions = "ENGINE=InnoDB, DEFAULT CHARSET=binary";
 
 # Semantic MediaWiki: store smw.json on the persistent volume
-$smwgConfigFileDir = getenv( 'MW_VOLUME' ) . '/config/smw';
+$smwgConfigFileDir = getenv( 'MW_VOLUME' ) . '/config/persistent';
 
 # Cache (Canasta uses APCu)
 $wgMainCacheType = CACHE_ACCEL;

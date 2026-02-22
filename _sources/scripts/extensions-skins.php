@@ -177,7 +177,8 @@ $combinedHash = '';
 foreach ($hashFiles as $f) {
     $combinedHash .= md5_file($f);
 }
-file_put_contents("$MW_HOME/.composer-deps-hash", md5($combinedHash) . "\n");
+exec("mkdir -p $MW_ORIGIN_FILES/config/persistent");
+file_put_contents("$MW_ORIGIN_FILES/config/persistent/.composer-deps-hash", md5($combinedHash) . "\n");
 
 /**
  * Recursive function to allow for loading a whole chain of YAML files (if
