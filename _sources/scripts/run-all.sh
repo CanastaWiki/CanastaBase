@@ -7,6 +7,19 @@ set -x
 # Symlink all extensions and skins (both bundled and user)
 /create-symlinks.sh
 
+# Soft sync contents from $MW_ORIGIN_FILES directory to $MW_VOLUME
+# The goal of this operation is to copy over all the files generated
+# by the image to bind-mount points on host which are bind to
+# $MW_VOLUME (./extensions, ./skins, ./config, ./images),
+# note that this command will also set all the necessary permissions
+echo "Syncing files..."
+rsync -ah --inplace --ignore-existing \
+  -og --chown="$WWW_GROUP:$WWW_USER" --chmod=Fg=rw,Dg=rwx \
+  "$MW_ORIGIN_FILES"/ "$MW_VOLUME"/
+
+# Create needed directories
+mkdir -p "$MW_VOLUME"/l10n_cache
+
 # Unified composer autoloader
 #
 # The Canasta image builds a unified vendor/autoload.php at build time using
@@ -49,32 +62,19 @@ if [ "$HAS_INCLUDES" = "true" ]; then
     echo md5($h);
   ')
   SAVED_HASH=""
-  if [ -f "$MW_HOME/.composer-deps-hash" ]; then
-    SAVED_HASH=$(cat "$MW_HOME/.composer-deps-hash" | tr -d '[:space:]')
+  if [ -f "$MW_VOLUME/config/persistent/.composer-deps-hash" ]; then
+    SAVED_HASH=$(cat "$MW_VOLUME/config/persistent/.composer-deps-hash" | tr -d '[:space:]')
   fi
   if [ "$CURRENT_HASH" != "$SAVED_HASH" ]; then
     echo "Composer dependencies changed, running composer update..."
     composer update --working-dir="$MW_HOME" --no-dev --no-interaction
-    echo "$CURRENT_HASH" > "$MW_HOME/.composer-deps-hash"
+    echo "$CURRENT_HASH" > "$MW_VOLUME/config/persistent/.composer-deps-hash"
   else
     echo "Composer dependencies unchanged, skipping update."
   fi
 else
   echo "No composer.local.json includes found, using build-time autoloader."
 fi
-
-# Soft sync contents from $MW_ORIGIN_FILES directory to $MW_VOLUME
-# The goal of this operation is to copy over all the files generated
-# by the image to bind-mount points on host which are bind to
-# $MW_VOLUME (./extensions, ./skins, ./config, ./images),
-# note that this command will also set all the necessary permissions
-echo "Syncing files..."
-rsync -ah --inplace --ignore-existing \
-  -og --chown="$WWW_GROUP:$WWW_USER" --chmod=Fg=rw,Dg=rwx \
-  "$MW_ORIGIN_FILES"/ "$MW_VOLUME"/
-
-# Create needed directories
-mkdir -p "$MW_VOLUME"/l10n_cache
 
 /update-docker-gateway.sh
 
@@ -157,9 +157,9 @@ if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ 
   # Snapshot which wikis have SMW set up before run_autoupdate, since
   # update.php triggers setupStore.php via SMW hooks (creating .smw.json
   # entries). We need to detect newly-setup wikis to notify the user.
-  SMW_JSON="$MW_VOLUME/config/smw/.smw.json"
+  SMW_JSON="$MW_VOLUME/config/persistent/.smw.json"
   if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
-    mkdir -p "$MW_VOLUME/config/smw"
+    mkdir -p "$MW_VOLUME/config/persistent"
     SMW_WIKIS_BEFORE=""
     if [ -f "$SMW_JSON" ]; then
       SMW_WIKIS_BEFORE=$(php -r "
