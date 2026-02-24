@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -x
 
+. /functions.sh
+
 # Disable directory monitoring
-if [ $DISABLE_DIRECTORY_MONITOR == true ]; then
+if isTrue "$DISABLE_DIRECTORY_MONITOR"; then
   echo "Directory monitoring is disabled via DISABLE_DIRECTORY_MONITOR"
   exit 0
 fi
