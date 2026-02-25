@@ -147,7 +147,7 @@ run_autoupdate () {
 
 run_maintenance_scripts() {
   # Iterate through all the .sh files in /maintenance-scripts/ directory
-  for maintenance_script in $(find /maintenance-scripts/ -maxdepth 1 -mindepth 1 -type f -name "*.sh"); do
+  for maintenance_script in $(find /maintenance-scripts/ -maxdepth 1 -mindepth 1 -type f -name "*.sh" | sort); do
     script_name=$(basename "$maintenance_script")
 
     # If the script's name starts with "mw_", run it with the run_mw_script function
