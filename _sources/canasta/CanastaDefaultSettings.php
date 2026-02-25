@@ -143,6 +143,16 @@ $DOCKER_MW_VOLUME = getenv( 'MW_VOLUME' );
 ## be publicly accessible from the web.
 $wgCacheDirectory = isEnvTrue( 'MW_USE_CACHE_DIRECTORY' ) ? "$DOCKER_MW_VOLUME/l10n_cache" : false;
 
+# Default logging: capture exceptions, errors, and fatal errors.
+# These are production-safe and low-volume. Users can override or extend
+# these in their settings files.
+# For full debug logging (verbose, not for production), set $wgDebugLogFile.
+$wgDebugLogGroups = [
+	'exception' => getenv( 'MW_LOG' ) . '/exception.log',
+	'error' => getenv( 'MW_LOG' ) . '/error.log',
+	'fatal' => getenv( 'MW_LOG' ) . '/fatal.log',
+];
+
 # Include user defined CommonSettings.php file
 if ( file_exists( $canastaCommonSettingsFilePath ) ) {
 	require_once "$canastaCommonSettingsFilePath";
