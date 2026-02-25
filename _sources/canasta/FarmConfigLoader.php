@@ -164,7 +164,8 @@ if ( !empty( $selectedWikiConfig ) ) {
 }
 
 // Configure the wiki server and URL paths
-$wgServer = "https://$serverName";
+$scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
+$wgServer = "$scheme://$serverName";
 $wgScriptPath = !empty( $path )
 	? "/$path/w"
 	: "/w";
