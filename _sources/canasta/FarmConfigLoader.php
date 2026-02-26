@@ -134,6 +134,17 @@ if ( $cliDefaultToFirstWiki && $wikiID === null ) {
 	}
 }
 
+// Check if the path is the wiki directory route
+if ( $path === 'wikis' && $wikiID === null ) {
+	if ( getenv( 'CANASTA_ENABLE_WIKI_DIRECTORY' ) === 'true' ) {
+		header( 'Cache-Control: no-cache' );
+		header( 'Content-Type: text/html; charset=utf-8' );
+		$directoryOnly = true;
+		require __DIR__ . '/CanastaFarm404.php';
+		exit;
+	}
+}
+
 // Check if the key is null or if it exists in the urlToWikiIdMap, else throw an exception
 if ( $key === null ) {
 	throw new Exception( "Error: Key is null." );
@@ -143,7 +154,8 @@ if ( $key === null ) {
 	HttpStatus::header( 404 );
 	header( 'Cache-Control: no-cache' );
 	header( 'Content-Type: text/html; charset=utf-8' );
-	echo "Not Found";
+	$directoryOnly = false;
+	require __DIR__ . '/CanastaFarm404.php';
 	exit;
 }
 
