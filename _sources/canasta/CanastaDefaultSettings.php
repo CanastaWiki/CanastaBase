@@ -214,6 +214,6 @@ $wgHooks['SiteNoticeAfter'][] = function ( &$siteNotice, Skin $skin ) {
 		return;
 	}
 
-	$warningText = 'Email is sent via the built-in mail server but may be flagged as spam. For reliable delivery, configure <a href="https://www.mediawiki.org/wiki/Manual:$wgSMTP">$wgSMTP</a> with an authenticated SMTP provider.';
+	$warningText = 'Email is sent via the built-in mail server, which works but messages may be flagged as spam by recipients. To improve deliverability, you can configure <a href="https://www.mediawiki.org/wiki/Manual:$wgSMTP">$wgSMTP</a> to use an authenticated SMTP provider instead.';
 	$siteNotice .= Html::warningBox( '<span style="font-size: larger;">' . $warningText . '</span>' );
 };
