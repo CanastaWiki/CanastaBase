@@ -214,6 +214,6 @@ $wgHooks['SiteNoticeAfter'][] = function ( &$siteNotice, Skin $skin ) {
 		return;
 	}
 
-	$warningText = 'Please note that mailing does not currently work on this wiki, because Canasta requires <a href="https://www.mediawiki.org/wiki/Manual:$wgSMTP">$wgSMTP</a> to be set in order to send emails.';
+	$warningText = 'Email is sent via the built-in mail server but may be flagged as spam. For reliable delivery, configure <a href="https://www.mediawiki.org/wiki/Manual:$wgSMTP">$wgSMTP</a> with an authenticated SMTP provider.';
 	$siteNotice .= Html::warningBox( '<span style="font-size: larger;">' . $warningText . '</span>' );
 };

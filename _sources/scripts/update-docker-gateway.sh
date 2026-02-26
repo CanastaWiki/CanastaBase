@@ -33,6 +33,3 @@ if [ -n "$WG_SITE_SERVER" ]; then
     fi
 fi
 cp -f ~/hosts.new /etc/hosts
-
-# Update /etc/ssmtp/ssmtp.conf to use DOCKER_GATEWAY
-sed -i "s/DOCKER_GATEWAY/$DOCKER_GATEWAY/" /etc/msmtprc

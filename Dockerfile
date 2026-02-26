@@ -38,8 +38,6 @@ RUN set x; \
 	imagemagick  \
 	librsvg2-bin \
 	python3-pygments \
-	msmtp \
-	msmtp-mta \
 	patch \
 	vim \
 	mc \
@@ -211,7 +209,6 @@ ENV MW_AUTOUPDATE=true \
 	LOG_FILES_COMPRESS_DELAY=3600 \
 	LOG_FILES_REMOVE_OLDER_THAN_DAYS=10
 
-COPY _sources/configs/msmtprc /etc/
 COPY _sources/configs/mediawiki.conf /etc/apache2/sites-enabled/
 COPY _sources/configs/status.conf /etc/apache2/mods-available/
 COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini /etc/php/8.2/cli/conf.d/
