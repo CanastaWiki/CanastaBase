@@ -195,6 +195,10 @@ if ( !is_dir( $wikiConfigDir ) ) {
 	$wikiConfigDir = getenv( 'MW_VOLUME' ) . "/config/{$wikiID}";
 }
 
+// Load extensions/skins from per-wiki YAML files (e.g. CanastaManaged.yaml)
+// before user PHP files so that user settings can configure loaded extensions.
+canastaLoadConfigYaml( $wikiConfigDir );
+
 $files = glob( $wikiConfigDir . '/*.php' );
 
 // Check if the glob function was successful, else continue with the execution
