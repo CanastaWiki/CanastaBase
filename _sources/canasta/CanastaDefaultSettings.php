@@ -136,6 +136,33 @@ function isEnvTrue( $name ): bool {
 	return false;
 }
 
+/**
+ * Load extensions and skins from YAML files in the given settings directory.
+ * Uses MediaWiki's SettingsBuilder to process each file, which handles extension
+ * and skin registration via the same mechanism as MediaWiki's own YAML settings
+ * files (see Manual:YAML_settings_file_format).
+ *
+ * Files are loaded in lexicographic order. The Canasta CLI manages a file called
+ * CanastaManaged.yaml; users may add their own YAML files alongside it.
+ *
+ * This runs during the SettingsBuilder "loading" stage (within LocalSettings.php
+ * processing), so loadFile() is available. Extensions and skins are queued and
+ * registered later when Setup.php transitions to the registration stage.
+ *
+ * @param string $configDir Directory containing YAML settings files
+ */
+function canastaLoadConfigYaml( $configDir ) {
+	global $wgSettings;
+	$yamlFiles = glob( $configDir . '/*.yaml' );
+	if ( $yamlFiles === false || !is_array( $yamlFiles ) ) {
+		return;
+	}
+	sort( $yamlFiles );
+	foreach ( $yamlFiles as $yamlFile ) {
+		$wgSettings->loadFile( $yamlFile );
+	}
+}
+
 $DOCKER_MW_VOLUME = getenv( 'MW_VOLUME' );
 
 ## Set $wgCacheDirectory to a writable directory on the web server
@@ -169,6 +196,10 @@ $globalSettingsDir = getenv( 'MW_VOLUME' ) . '/config/settings/global';
 if ( !is_dir( $globalSettingsDir ) ) {
 	$globalSettingsDir = getenv( 'MW_VOLUME' ) . '/config/settings';
 }
+
+// Load extensions/skins from YAML files (e.g. CanastaManaged.yaml) before
+// user PHP files so that user settings can configure loaded extensions.
+canastaLoadConfigYaml( $globalSettingsDir );
 
 $filenames = glob( $globalSettingsDir . '/*.php' );
 
