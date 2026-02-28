@@ -96,18 +96,6 @@ RUN set -x; \
 	curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
     && composer self-update 2.1.3
 
-# Pinning system package versions is impractical on Debian
-# hadolint ignore=DL3008
-RUN set -x; \
-	# Preconfigure Postfix to avoid the interactive prompt
-	echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections \
-    && echo "postfix postfix/mailname string $LOCAL_SMTP_MAILNAME" | debconf-set-selections \
-	&& apt-get update \
-	&& apt-get install -y --no-install-recommends mailutils postfix \
-	&& rm -rf /var/lib/apt/lists/*
-
-COPY main.cf /etc/postfix/main.cf
-
 FROM base AS source
 
 # MediaWiki core
@@ -191,7 +179,6 @@ ENV MW_AUTOUPDATE=true \
 	MW_ENABLE_JOB_RUNNER=true \
 	MW_JOB_RUNNER_PAUSE=2 \
 	MW_JOB_RUNNER_MEMORY_LIMIT=512M \
-	MW_ENABLE_POSTFIX=true \
 	MW_ENABLE_TRANSCODER=true \
 	MW_ENABLE_LOG_ROTATOR=true \
 	MW_JOB_TRANSCODER_PAUSE=60 \

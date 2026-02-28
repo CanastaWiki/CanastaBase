@@ -236,16 +236,6 @@ make_dir_writable "$MW_VOLUME" -not '(' -path "$MW_VOLUME/images" -prune ')' &
 # Running php-fpm
 /run-php-fpm.sh &
 
-# Start built-in Postfix mailer unless disabled
-if isTrue "$MW_ENABLE_POSTFIX"; then
-    if [ -n "$MW_SITE_SERVER" ]; then
-        MAIL_DOMAIN=$(echo "$MW_SITE_SERVER" | sed -e 's|^[^/]*//||' -e 's|[:/].*$||')
-        echo "$MAIL_DOMAIN" > /etc/mailname
-        postconf -e "myhostname=$MAIL_DOMAIN"
-    fi
-    service postfix start
-fi
-
 ############### Run Apache ###############
 # Make sure we're not confused by old, incompletely-shutdown httpd
 # context after restarting the container.  httpd won't start correctly
