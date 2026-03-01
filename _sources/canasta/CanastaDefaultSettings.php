@@ -143,7 +143,7 @@ function isEnvTrue( $name ): bool {
  * files (see Manual:YAML_settings_file_format).
  *
  * Files are loaded in lexicographic order. The Canasta CLI manages a file called
- * CanastaManaged.yaml; users may add their own YAML files alongside it.
+ * settings.yaml; users may add their own YAML files alongside it.
  *
  * This runs during the SettingsBuilder "loading" stage (within LocalSettings.php
  * processing), so loadFile() is available. Extensions and skins are queued and
@@ -197,7 +197,7 @@ if ( !is_dir( $globalSettingsDir ) ) {
 	$globalSettingsDir = getenv( 'MW_VOLUME' ) . '/config/settings';
 }
 
-// Load extensions/skins from YAML files (e.g. CanastaManaged.yaml) before
+// Load extensions/skins from YAML files (e.g. settings.yaml) before
 // user PHP files so that user settings can configure loaded extensions.
 canastaLoadConfigYaml( $globalSettingsDir );
 
