@@ -216,13 +216,15 @@ if ( file_exists( getenv( 'MW_VOLUME' ) . '/config/wikis.yaml' ) ) {
 	require_once "$IP/FarmConfigLoader.php";
 }
 
-# Show Canasta version on Special:Version
+# Show distribution version on Special:Version
 $canastaVersionFile = '/tmp/canasta-version';
 if ( file_exists( $canastaVersionFile ) ) {
-	$canastaVersion = trim( file_get_contents( $canastaVersionFile ) );
-	if ( $canastaVersion !== '' ) {
-		$wgHooks['SoftwareInfo'][] = function ( &$software ) use ( $canastaVersion ) {
-			$software['[https://canasta.wiki/ Canasta]'] = $canastaVersion;
+	$lines = file( $canastaVersionFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+	if ( count( $lines ) >= 2 ) {
+		$distributionLabel = $lines[0];
+		$distributionVersion = $lines[1];
+		$wgHooks['SoftwareInfo'][] = function ( &$software ) use ( $distributionLabel, $distributionVersion ) {
+			$software[$distributionLabel] = $distributionVersion;
 		};
 	}
 }
