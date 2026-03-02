@@ -150,3 +150,52 @@ jobs:
           message: ":whale: The image based on [${{ steps.generate.outputs.SHA_SHORT }}](https://github.com/CanastaWiki/CanastaBase/pull/${{ steps.generate.outputs.REGISTRY_TAGS_PR_NUMBER }}/commits/${{ github.event.pull_request.head.sha }}) commit has been built with `${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}` tag as [${{ steps.generate.outputs.REGISTRY_TAGS }}](https://github.com/${{ github.repository }}/pkgs/container/${{ env.IMAGE_NAME }}/${{ steps.docker_build.outputs.imageid }}?tag=${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }})"
           recreate: true
           fail: false
+
+  # Notify the Canasta repo when the CanastaBase version changes
+  notify-canasta:
+    needs: [push]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Check for VERSION change
+        id: version
+        run: |
+          if git diff HEAD~1 --name-only | grep -q '^VERSION$'; then
+            NEW_VERSION=$(cat VERSION)
+            OLD_VERSION=$(git show HEAD~1:VERSION)
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT
+
+            # Compute bump type
+            IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
+            IFS='.' read -r OLD_MAJOR OLD_MINOR OLD_PATCH <<< "$OLD_VERSION"
+            if [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then
+              echo "bump_type=major" >> $GITHUB_OUTPUT
+            elif [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
+              echo "bump_type=minor" >> $GITHUB_OUTPUT
+            else
+              echo "bump_type=patch" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Dispatch to Canasta
+        if: steps.version.outputs.changed == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CROSS_REPO_PAT }}
+          repository: CanastaWiki/Canasta
+          event-type: canastabase-version-bump
+          client-payload: >-
+            {
+              "new_version": "${{ steps.version.outputs.new_version }}",
+              "old_version": "${{ steps.version.outputs.old_version }}",
+              "bump_type": "${{ steps.version.outputs.bump_type }}"
+            }
