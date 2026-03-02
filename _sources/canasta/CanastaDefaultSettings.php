@@ -216,6 +216,19 @@ if ( file_exists( getenv( 'MW_VOLUME' ) . '/config/wikis.yaml' ) ) {
 	require_once "$IP/FarmConfigLoader.php";
 }
 
+# Show distribution version on Special:Version
+$canastaVersionFile = '/tmp/canasta-version';
+if ( file_exists( $canastaVersionFile ) ) {
+	$lines = file( $canastaVersionFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+	if ( count( $lines ) >= 2 ) {
+		$distributionLabel = $lines[0];
+		$distributionVersion = $lines[1];
+		$wgHooks['SoftwareInfo'][] = function ( &$software ) use ( $distributionLabel, $distributionVersion ) {
+			$software[$distributionLabel] = $distributionVersion;
+		};
+	}
+}
+
 /**
  * Show a warning to users that mailing requires $wgSMTP.
  */
