@@ -21,7 +21,7 @@ env:
 
 jobs:
   # Test the image Dockerfile syntax using https://github.com/replicatedhq/dockerfilelint
-  test:
+  lint:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
@@ -33,6 +33,79 @@ jobs:
           dockerfile: "Dockerfile"
           config: "hadolint.yaml"
 
+  test:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+
+      -
+        name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      -
+        name: Build image
+        uses: docker/build-push-action@v3
+        id: docker_build
+        with:
+          context: .
+          load: true
+          tags: canasta-base:test
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.6.0
+        with:
+          redis-version: 7
+          redis-port: 6379
+
+      - name: Shut down Ubuntu MySQL (SUDO)
+        run: sudo service mysql stop
+
+      - name: Start MariaDB
+        uses: getong/mariadb-action@v1.1
+        with:
+          host port: 3306
+          container port: 3306
+          character set server: 'utf8'
+          collation server: 'utf8_general_ci'
+          mariadb version: '10.4.10'
+          mysql database: 'mediawiki'
+          mysql root password: 'mediawiki'
+          mysql user: 'mediawiki'
+          mysql password: 'mediawiki'
+
+      # Debug
+#      - name: Setup upterm session
+#        uses: lhotari/action-upterm@v1
+
+      -
+        name: Run PHPUnit
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ steps.docker_build.outputs.imageid }}
+          shell: bash
+          options: >
+            --add-host=host.docker.internal:host-gateway
+            -v ${{ github.workspace }}/run-ci.sh:/var/www/mediawiki/w/run-ci.sh
+            -v ${{ github.workspace }}/images:/var/www/mediawiki/w/images
+          run: bash run-ci.sh
+
   # Push image to GitHub Packages.
   # The image tag pattern is:
   # for pull-requests: <MW_CORE_VERSION>-<DATE>-<PR_NUMBER>, eg: 1.35.2-20210125-25
@@ -40,7 +113,7 @@ jobs:
   # for `master` branch: latest + <MW_VERSION>-latest + <MW_CORE_VERSION>-<DATE>-<SHA>
   # <MW_CORE_VERSION> being parsed from the Dockerfile
   push:
-    needs: [test]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
