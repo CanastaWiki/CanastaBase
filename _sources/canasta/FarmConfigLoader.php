@@ -5,6 +5,8 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 	exit;
 }
 
+use Symfony\Component\Yaml\Yaml;
+
 // Get the original URL from the environment variables
 $original_url = getenv( 'ORIGINAL_URL' );
 $serverName = "";
@@ -76,12 +78,7 @@ try {
 	}
 
 	// Parse the configuration file
-	$wikiConfigurations = yaml_parse_file( $file );
-
-	// Check if file parsing was successful, else throw an exception
-	if ( $wikiConfigurations === false ) {
-		throw new Exception( 'Error parsing the configuration file' );
-	}
+	$wikiConfigurations = Yaml::parseFile( $file );
 } catch ( Exception $e ) {
 	die( 'Caught exception: ' . $e->getMessage() );
 }
