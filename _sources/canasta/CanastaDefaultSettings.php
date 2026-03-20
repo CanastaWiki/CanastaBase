@@ -105,8 +105,10 @@ $smwgConfigFileDir = getenv( 'MW_VOLUME' ) . '/config/persistent';
 $wgMainCacheType = CACHE_ACCEL;
 $wgMemCachedServers = [];
 
-# Varnish cache configuration (only when enabled via CANASTA_ENABLE_VARNISH)
-if ( isEnvTrue( 'CANASTA_ENABLE_VARNISH' ) ) {
+# Varnish cache configuration (enabled by default for backward compatibility;
+# set CANASTA_ENABLE_VARNISH=false to disable)
+$canastaEnableVarnish = getenv( 'CANASTA_ENABLE_VARNISH' );
+if ( $canastaEnableVarnish === false || $canastaEnableVarnish === '' || isEnvTrue( 'CANASTA_ENABLE_VARNISH' ) ) {
 	# Exclude all private IP ranges from CDN purge restrictions
 	# see https://www.mediawiki.org/wiki/Manual:$wgCdnServersNoPurge
 	$wgUseCdn = true;
