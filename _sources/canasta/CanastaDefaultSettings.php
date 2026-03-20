@@ -107,8 +107,8 @@ $wgMemCachedServers = [];
 
 # Varnish cache configuration (enabled by default for backward compatibility;
 # set CANASTA_ENABLE_VARNISH=false to disable)
-$canastaEnableVarnish = getenv( 'CANASTA_ENABLE_VARNISH' );
-if ( $canastaEnableVarnish === false || $canastaEnableVarnish === '' || isEnvTrue( 'CANASTA_ENABLE_VARNISH' ) ) {
+$canastaEnableVarnish = strtolower( (string)getenv( 'CANASTA_ENABLE_VARNISH' ) );
+if ( $canastaEnableVarnish !== 'false' && $canastaEnableVarnish !== '0' ) {
 	# Exclude all private IP ranges from CDN purge restrictions
 	# see https://www.mediawiki.org/wiki/Manual:$wgCdnServersNoPurge
 	$wgUseCdn = true;
