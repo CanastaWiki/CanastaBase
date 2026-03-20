@@ -105,18 +105,20 @@ $smwgConfigFileDir = getenv( 'MW_VOLUME' ) . '/config/persistent';
 $wgMainCacheType = CACHE_ACCEL;
 $wgMemCachedServers = [];
 
-# Docker specific setup
-# Exclude all private IP ranges
-# see https://www.mediawiki.org/wiki/Manual:$wgCdnServersNoPurge
-$wgUseCdn = true;
-$wgCdnServersNoPurge = [];
-$wgCdnServersNoPurge[] = '10.0.0.0/8';     // 10.0.0.0 – 10.255.255.255
-$wgCdnServersNoPurge[] = '172.16.0.0/12';  // 172.16.0.0 – 172.31.255.255
-$wgCdnServersNoPurge[] = '192.168.0.0/16'; // 192.168.0.0 – 192.168.255.255
+# Varnish cache configuration (only when enabled via CANASTA_ENABLE_VARNISH)
+if ( isEnvTrue( 'CANASTA_ENABLE_VARNISH' ) ) {
+	# Exclude all private IP ranges from CDN purge restrictions
+	# see https://www.mediawiki.org/wiki/Manual:$wgCdnServersNoPurge
+	$wgUseCdn = true;
+	$wgCdnServersNoPurge = [];
+	$wgCdnServersNoPurge[] = '10.0.0.0/8';     // 10.0.0.0 – 10.255.255.255
+	$wgCdnServersNoPurge[] = '172.16.0.0/12';  // 172.16.0.0 – 172.31.255.255
+	$wgCdnServersNoPurge[] = '192.168.0.0/16'; // 192.168.0.0 – 192.168.255.255
 
-# Configure Varnish cache purging
-$wgCdnServers = [ 'varnish:80' ];
-$wgInternalServer = preg_replace( '/^https:/', 'http:', $wgServer );
+	# Configure Varnish cache purging
+	$wgCdnServers = [ 'varnish:80' ];
+	$wgInternalServer = preg_replace( '/^https:/', 'http:', $wgServer );
+}
 
 /**
  * Returns boolean value from environment variable
