@@ -32,22 +32,25 @@ mkdir -p "$MW_VOLUME"/l10n_cache
 #
 # Behavior based on config/composer.local.json state:
 #   - Missing: build-time autoloader is preserved as-is, no runtime update
-#   - Empty include array: same as missing (build-time state preserved)
-#   - Non-empty include array: copied to $MW_HOME, hash-checked, composer
-#     update runs if changed
+#   - Identical to build-time version: no runtime update needed
+#   - Changed (includes, require, repositories, etc.): copied to $MW_HOME,
+#     hash-checked, composer update runs if changed
 #
-# To opt out of runtime composer updates, delete config/composer.local.json
-# or empty its include array. The build-time autoloader will be used as-is.
+# To opt out of runtime composer updates, delete config/composer.local.json.
+# The build-time autoloader will be used as-is.
 COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
-HAS_INCLUDES=false
+NEEDS_COMPOSER=false
 if [ -f "$COMPOSER_LOCAL" ]; then
-  HAS_INCLUDES=$(php -r '
+  NEEDS_COMPOSER=$(php -r '
     $data = json_decode(file_get_contents("'"$COMPOSER_LOCAL"'"), true);
+    if (!is_array($data)) { echo "false"; exit; }
     $include = $data["extra"]["merge-plugin"]["include"] ?? [];
-    echo count($include) > 0 ? "true" : "false";
+    $require = $data["require"] ?? [];
+    $repos = $data["repositories"] ?? [];
+    echo (count($include) > 0 || count($require) > 0 || count($repos) > 0) ? "true" : "false";
   ')
 fi
-if [ "$HAS_INCLUDES" = "true" ]; then
+if [ "$NEEDS_COMPOSER" = "true" ]; then
   cp "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"
   CURRENT_HASH=$(php -r '
     $clj = json_decode(file_get_contents("'"$MW_HOME"'/composer.local.json"), true);
@@ -73,7 +76,7 @@ if [ "$HAS_INCLUDES" = "true" ]; then
     echo "Composer dependencies unchanged, skipping update."
   fi
 else
-  echo "No composer.local.json includes found, using build-time autoloader."
+  echo "No composer dependencies in composer.local.json, using build-time autoloader."
 fi
 
 /update-docker-gateway.sh
