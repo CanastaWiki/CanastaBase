@@ -15,3 +15,4 @@ CanastaBase version history:
 - 1.3.0 - March 1, 2026 - Removed Postfix; added YAML settings file loading for extensions/skins; added styled 404 page and optional wiki directory for wiki farms; derived $wgServer scheme from MW_SITE_SERVER instead of hardcoding HTTPS; added default MediaWiki error logging and log rotation
 - 1.3.1 - March 1, 2026 - Show distribution version on Special:Version via SoftwareInfo hook
 - 1.3.2 - March 22, 2026 - Removed default.vcl (now managed by CLI installation template); switched FarmConfigLoader from PECL yaml to Symfony YAML parser; fixed composer hash check to account for require and repositories sections; skip Varnish CDN settings when CANASTA_ENABLE_VARNISH is explicitly disabled (backward compatible: Varnish remains enabled by default)
+- 1.3.3 - April 7,2026 - Upgrade to MediaWiki 1.43.8; GitHub actions upgrades
