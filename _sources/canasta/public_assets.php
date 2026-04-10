@@ -6,7 +6,7 @@
  * Use for logos and other assets that should be publicly accessible on both
  * public and private wikis.
  *
- * Unlike canasta_img.php, this script does not require MediaWiki bootstrap,
+ * Unlike img_auth.php, this script does not require MediaWiki bootstrap,
  * making it faster for serving static assets.
  *
  * @file

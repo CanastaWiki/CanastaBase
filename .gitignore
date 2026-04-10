@@ -17,3 +17,4 @@ cscope.out
 vendor/
 composer.phar
 composer.lock
+.phpunit.result.cache
