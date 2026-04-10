@@ -36,9 +36,19 @@ mkdir -p "$MW_VOLUME"/l10n_cache
 #   - Changed (includes, require, repositories, etc.): copied to $MW_HOME,
 #     hash-checked, composer update runs if changed
 #
+# The hash file lives at $MW_HOME/.composer-deps-hash, INSIDE the
+# container (not on the bind-mounted $MW_VOLUME). This is intentional:
+# vendor/ is also intra-container, so the hash and the deps it
+# describes share the same lifetime. When the container is recreated,
+# both go away together and composer correctly re-runs. Storing the
+# hash on $MW_VOLUME would survive container recreates but vendor/
+# would not, causing the post-recreate start to skip composer with a
+# matching hash and a missing vendor (issue #141).
+#
 # To opt out of runtime composer updates, delete config/composer.local.json.
 # The build-time autoloader will be used as-is.
 COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
+COMPOSER_HASH_FILE="$MW_HOME/.composer-deps-hash"
 NEEDS_COMPOSER=false
 if [ -f "$COMPOSER_LOCAL" ]; then
   NEEDS_COMPOSER=$(php -r '
@@ -65,13 +75,13 @@ if [ "$NEEDS_COMPOSER" = "true" ]; then
     echo md5($h);
   ')
   SAVED_HASH=""
-  if [ -f "$MW_VOLUME/config/persistent/.composer-deps-hash" ]; then
-    SAVED_HASH=$(cat "$MW_VOLUME/config/persistent/.composer-deps-hash" | tr -d '[:space:]')
+  if [ -f "$COMPOSER_HASH_FILE" ]; then
+    SAVED_HASH=$(cat "$COMPOSER_HASH_FILE" | tr -d '[:space:]')
   fi
   if [ "$CURRENT_HASH" != "$SAVED_HASH" ]; then
     echo "Composer dependencies changed, running composer update..."
     composer update --working-dir="$MW_HOME" --no-dev --no-interaction
-    echo "$CURRENT_HASH" > "$MW_VOLUME/config/persistent/.composer-deps-hash"
+    echo "$CURRENT_HASH" > "$COMPOSER_HASH_FILE"
   else
     echo "Composer dependencies unchanged, skipping update."
   fi

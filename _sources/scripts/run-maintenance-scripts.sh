@@ -184,6 +184,19 @@ run_mw_script() {
 }
 
 ########## Run maintenance scripts ##########
+#
+# This block is the script's "executable" entry point. It only fires
+# when the file is run directly (e.g. `/run-maintenance-scripts.sh &`
+# from run-all.sh) — NOT when the file is sourced for its helper
+# functions (which run-all.sh also does, with `. /run-maintenance-scripts.sh`).
+# Without this guard, sourcing the file silently triggers a full
+# maintenance run as a side effect, racing the explicit invocations
+# elsewhere and producing misleading DB / schema errors in the logs.
+# See issue #143.
+if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+    return 0
+fi
+
 # Check for valid configuration:
 # - New architecture: config/wikis.yaml (wiki farm config used by FarmConfigLoader.php)
 # - Legacy: config/LocalSettings.php or config/CommonSettings.php

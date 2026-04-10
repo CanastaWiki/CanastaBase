@@ -177,8 +177,12 @@ $combinedHash = '';
 foreach ($hashFiles as $f) {
     $combinedHash .= md5_file($f);
 }
-exec("mkdir -p $MW_ORIGIN_FILES/config/persistent");
-file_put_contents("$MW_ORIGIN_FILES/config/persistent/.composer-deps-hash", md5($combinedHash) . "\n");
+// The hash file lives at $MW_HOME/.composer-deps-hash, INSIDE the
+// container (not on the bind-mounted $MW_VOLUME). vendor/ is also
+// intra-container, so the hash and the deps it describes share the
+// same lifetime: when the container is recreated, both go away
+// together and run-all.sh correctly re-runs composer. See #141.
+file_put_contents("$MW_HOME/.composer-deps-hash", md5($combinedHash) . "\n");
 
 /**
  * Recursive function to allow for loading a whole chain of YAML files (if
