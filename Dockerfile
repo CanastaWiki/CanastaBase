@@ -213,7 +213,7 @@ COPY _sources/configs/.htaccess $WWW_ROOT/
 COPY _sources/images/favicon.ico $WWW_ROOT/
 COPY _sources/canasta/LocalSettings.php _sources/canasta/CanastaDefaultSettings.php _sources/canasta/FarmConfigLoader.php _sources/canasta/CanastaFarm404.php $MW_HOME/
 COPY _sources/canasta/getMediawikiSettings.php /
-COPY _sources/canasta/canasta_img.php _sources/canasta/public_assets.php $MW_HOME/
+COPY _sources/canasta/public_assets.php $MW_HOME/
 COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 
 RUN set -x; \
@@ -228,8 +228,8 @@ RUN set -x; \
 	# Modify config
 	&& sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf \
 	&& sed -i '/<Directory \/var\/www\/>/i RewriteCond %{THE_REQUEST} \\s(.*?)\\s\nRewriteRule ^ - [E=ORIGINAL_URL:%{REQUEST_SCHEME}://%{HTTP_HOST}%1]' /etc/apache2/apache2.conf \
-	&& echo "Alias /w/images/ /var/www/mediawiki/w/canasta_img.php/" >> /etc/apache2/apache2.conf \
-    && echo "Alias /w/images /var/www/mediawiki/w/canasta_img.php" >> /etc/apache2/apache2.conf \
+	&& echo "Alias /w/images/ /var/www/mediawiki/w/img_auth.php/" >> /etc/apache2/apache2.conf \
+    && echo "Alias /w/images /var/www/mediawiki/w/img_auth.php" >> /etc/apache2/apache2.conf \
 	&& echo "Alias /public_assets/ /var/www/mediawiki/w/public_assets.php/" >> /etc/apache2/apache2.conf \
 	&& echo "Alias /public_assets /var/www/mediawiki/w/public_assets.php" >> /etc/apache2/apache2.conf \
 	&& a2enmod expires remoteip\

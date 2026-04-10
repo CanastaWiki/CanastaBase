@@ -9,8 +9,8 @@ Options -Indexes
 # VisualEditor support
 RewriteRule ^/?w/rest.php/ - [L]
 
-# Redirects requests to canasta_img.php for handling image authorization in Canasta.
-RewriteRule ^/?w/canasta_img.php/ - [L]
+# Allow img_auth.php to handle authenticated image requests
+RewriteRule ^/?w/img_auth.php/ - [L]
 
 # Redirects requests to public_assets.php for serving public assets in Canasta.
 RewriteRule ^/?w/public_assets.php/ - [L]
