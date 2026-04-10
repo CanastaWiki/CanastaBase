@@ -17,7 +17,10 @@
 
 set -e
 
-WIKIS_YAML="$MW_VOLUME/config/wikis.yaml"
+# Paths are env-var driven for testability. In production they fall
+# back to the canonical Canasta locations.
+WIKIS_YAML="${WIKIS_YAML:-$MW_VOLUME/config/wikis.yaml}"
+APACHE_CONF="${APACHE_CONF:-/etc/apache2/apache2.conf}"
 
 # Walk wikis.yaml and emit one TAB-separated "id<TAB>url" line per wiki.
 # Assumes the canonical canasta wikis.yaml format where each wiki entry
@@ -37,8 +40,10 @@ parse_wikis() {
 }
 
 # Track which subdir paths we have already configured (a single subdir
-# could appear in wikis.yaml under more than one host in a farm).
-declare -A processed_subdirs
+# could appear in wikis.yaml under more than one host in a farm). Uses
+# a delimited string instead of an associative array for bash 3.x
+# compatibility (macOS ships bash 3.2, which can't `declare -A`).
+processed_subdirs=":"
 
 while IFS=$'\t' read -r wiki_id wiki_url; do
     [ -z "$wiki_id" ] && continue
@@ -61,12 +66,12 @@ while IFS=$'\t' read -r wiki_id wiki_url; do
     # safe for multi-host farms — only the matching host's request paths
     # get routed to that wiki's storage directory.
     if [ -n "$wiki_path" ]; then
-        cat >> /etc/apache2/apache2.conf <<APACHE
+        cat >> "$APACHE_CONF" <<APACHE
 RewriteCond %{HTTP_HOST} ^${host_re}\$ [NC]
 RewriteRule ^/${wiki_path}/public_assets/(.*)\$ /mediawiki/public_assets/${wiki_id}/\$1 [L]
 APACHE
     else
-        cat >> /etc/apache2/apache2.conf <<APACHE
+        cat >> "$APACHE_CONF" <<APACHE
 RewriteCond %{HTTP_HOST} ^${host_re}\$ [NC]
 RewriteRule ^/public_assets/(.*)\$ /mediawiki/public_assets/${wiki_id}/\$1 [L]
 APACHE
@@ -76,8 +81,8 @@ APACHE
     # this script for the img_auth.php / .htaccess pieces). Skip when
     # the wiki lives at the root of its host, or when we have already
     # configured this subdir for another host.
-    if [ -n "$wiki_path" ] && [ -z "${processed_subdirs[$wiki_path]}" ]; then
-        processed_subdirs[$wiki_path]=1
+    if [ -n "$wiki_path" ] && [[ "$processed_subdirs" != *":$wiki_path:"* ]]; then
+        processed_subdirs="${processed_subdirs}${wiki_path}:"
 
         mkdir -p "$WWW_ROOT/$wiki_path"
         ln -sf "$MW_HOME" "$WWW_ROOT/$wiki_path"
@@ -88,7 +93,7 @@ APACHE
             -e "s|^\\(.*\\)\$ %{DOCUMENT_ROOT}/w/index.php|\\1\$ %{DOCUMENT_ROOT}/$wiki_path/w/index.php|" \
             "$WWW_ROOT/.htaccess" > "$WWW_ROOT/$wiki_path/.htaccess"
 
-        echo "Alias /$wiki_path/w/images/ /var/www/mediawiki/w/img_auth.php/" >> /etc/apache2/apache2.conf
-        echo "Alias /$wiki_path/w/images /var/www/mediawiki/w/img_auth.php" >> /etc/apache2/apache2.conf
+        echo "Alias /$wiki_path/w/images/ /var/www/mediawiki/w/img_auth.php/" >> "$APACHE_CONF"
+        echo "Alias /$wiki_path/w/images /var/www/mediawiki/w/img_auth.php" >> "$APACHE_CONF"
     fi
 done < <(parse_wikis)
