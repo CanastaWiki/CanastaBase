@@ -18,6 +18,7 @@ define( 'MW_NO_OUTPUT_COMPRESSION', 1 );
 define( 'MW_ENTRY_POINT', 'canasta_img' );
 require __DIR__ . '/includes/WebStart.php';
 
+require_once __DIR__ . '/CanastaImagePathHelper.php';
 require_once __DIR__ . '/CanastaAuthenticatedFileEntryPoint.php';
 
 use Canasta\FileRepo\CanastaAuthenticatedFileEntryPoint;

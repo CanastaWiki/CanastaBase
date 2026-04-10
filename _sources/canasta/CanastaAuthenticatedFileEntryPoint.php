@@ -72,12 +72,7 @@ class CanastaAuthenticatedFileEntryPoint extends MediaWikiEntryPoint {
 
 		// --- Canasta wiki farm: inject wiki ID into path ---
 		if ( isset( $wikiID ) && $wikiID !== '' ) {
-			$path = self::strReplaceLast(
-				"/images", "/images/$wikiID", $path
-			);
-			$path = self::strReplaceLast(
-				"/canasta_img.php", "/canasta_img.php/$wikiID", $path
-			);
+			$path = CanastaImagePathHelper::injectWikiId( $path, $wikiID );
 		} else {
 			wfDebugLog( 'canasta_img',
 				'Warning: wikiID is not set or empty' );
@@ -278,21 +273,4 @@ class CanastaAuthenticatedFileEntryPoint extends MediaWikiEntryPoint {
 		);
 	}
 
-	/**
-	 * Replace the last occurrence of a substring.
-	 *
-	 * @param string $search
-	 * @param string $replace
-	 * @param string $subject
-	 * @return string
-	 */
-	private static function strReplaceLast( $search, $replace, $subject ) {
-		$pos = strrpos( $subject, $search );
-		if ( $pos !== false ) {
-			$subject = substr_replace(
-				$subject, $replace, $pos, strlen( $search )
-			);
-		}
-		return $subject;
-	}
 }
