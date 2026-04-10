@@ -7,6 +7,27 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 
 use Symfony\Component\Yaml\Yaml;
 
+// Wiki farm routing mode.
+//
+//   path     (default) — wikis can be at hostnames or hostname/subdir
+//                        URLs. The first segment of the request path
+//                        is treated as a wiki identifier.
+//
+//   hostname           — wikis must each be on a unique hostname with
+//                        no path component. The request path is left
+//                        intact for MediaWiki to interpret as a page
+//                        title via $wgArticlePath = "/$1" (root-relative
+//                        short URLs). Incompatible with the wiki
+//                        directory feature and with any path-based
+//                        wiki in wikis.yaml.
+$farmRouting = strtolower( getenv( 'CANASTA_FARM_ROUTING' ) ?: 'path' );
+if ( !in_array( $farmRouting, [ 'path', 'hostname' ], true ) ) {
+    throw new Exception(
+        "CANASTA_FARM_ROUTING must be 'path' or 'hostname' "
+        . "(got '" . getenv( 'CANASTA_FARM_ROUTING' ) . "')."
+    );
+}
+
 // Get the original URL from the environment variables
 $original_url = getenv( 'ORIGINAL_URL' );
 $serverName = "";
@@ -43,8 +64,11 @@ if ( !$cliDefaultToFirstWiki ) {
 		}
 	}
 
-	// Extract the path from the URL, if any
-	if ( isset( $urlComponents['path'] ) ) {
+	// Extract the path from the URL, if any.
+	//
+	// In hostname routing mode the path is intentionally left empty
+	// — the first URL segment is a page title, not a wiki identifier.
+	if ( $farmRouting !== 'hostname' && isset( $urlComponents['path'] ) ) {
 		// Split the path into parts
 		$pathParts = explode( '/', trim( $urlComponents['path'], '/' ) );
 
@@ -91,6 +115,31 @@ if ( isset( $wikiConfigurations ) && isset( $wikiConfigurations['wikis'] ) && is
 	foreach ( $wikiConfigurations['wikis'] as $wiki ) {
 		// Check if 'url' and 'id' are set before using them
 		if ( isset( $wiki['url'] ) && isset( $wiki['id'] ) ) {
+			// In hostname routing mode, every wiki must be on its
+			// own unique hostname with no path component. Reject
+			// path-based URLs early with a clear message — the
+			// alternative is silently routing the wrong wiki to
+			// the wrong host. See issue #138.
+			if ( $farmRouting === 'hostname' && strpos( $wiki['url'], '/' ) !== false ) {
+				throw new Exception(
+					"FarmConfigLoader: CANASTA_FARM_ROUTING is set to "
+					. "'hostname' but wiki '" . $wiki['id'] . "' has a "
+					. "path-based URL ('" . $wiki['url'] . "'). Path-based "
+					. "wikis are incompatible with hostname routing — each "
+					. "wiki must be on its own unique hostname. Either "
+					. "remove this wiki, change its URL to a unique "
+					. "hostname, or unset CANASTA_FARM_ROUTING."
+				);
+			}
+			if ( $farmRouting === 'hostname' && isset( $urlToWikiIdMap[$wiki['url']] ) ) {
+				throw new Exception(
+					"FarmConfigLoader: hostname '" . $wiki['url'] . "' is "
+					. "claimed by both wiki '" . $urlToWikiIdMap[$wiki['url']]
+					. "' and wiki '" . $wiki['id'] . "'. Each wiki must be "
+					. "on a unique hostname when CANASTA_FARM_ROUTING is "
+					. "'hostname'."
+				);
+			}
 			$urlToWikiIdMap[$wiki['url']] = $wiki['id'];
 			$wikiIdToConfigMap[$wiki['id']] = $wiki;
 		} else {
@@ -99,6 +148,22 @@ if ( isset( $wikiConfigurations ) && isset( $wikiConfigurations['wikis'] ) && is
 	}
 } else {
 	throw new Exception( 'Error: Invalid wiki configurations.' );
+}
+
+// In hostname mode, the wiki directory feature is incompatible —
+// the directory route /wikis would collide with a page titled
+// "Wikis" on any wiki using root-relative short URLs.
+if ( $farmRouting === 'hostname'
+	&& getenv( 'CANASTA_ENABLE_WIKI_DIRECTORY' ) === 'true'
+) {
+	throw new Exception(
+		"FarmConfigLoader: CANASTA_FARM_ROUTING is set to 'hostname' "
+		. "and CANASTA_ENABLE_WIKI_DIRECTORY is set to 'true', but "
+		. "these features are incompatible. The wiki directory is "
+		. "served at /wikis, which collides with a page titled "
+		. "'Wikis' on any wiki using root-relative short URLs. "
+		. "Disable one or the other."
+	);
 }
 
 // Prepare the key using the server name and the path
@@ -179,9 +244,18 @@ $wgScriptPath = !empty( $path )
 	? "/$path/w"
 	: "/w";
 
-$wgArticlePath = !empty( $path )
-	? "/$path/wiki/$1"
-	: "/wiki/$1";
+// In hostname routing mode, page URLs are root-relative (no /wiki/
+// segment). $wgScriptPath stays at /w because MediaWiki's own files
+// (api.php, load.php, edit forms, etc.) still live under /w/. The
+// per-wiki Settings.php loaded below can still override $wgArticlePath
+// if a particular wiki needs a different shape.
+if ( $farmRouting === 'hostname' ) {
+	$wgArticlePath = "/$1";
+} else {
+	$wgArticlePath = !empty( $path )
+		? "/$path/wiki/$1"
+		: "/wiki/$1";
+}
 $wgCacheDirectory = "$IP/cache/$wikiID";
 $wgUploadDirectory = "$IP/images/$wikiID";
 
