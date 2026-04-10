@@ -16,3 +16,4 @@ CanastaBase version history:
 - 1.3.1 - March 1, 2026 - Show distribution version on Special:Version via SoftwareInfo hook
 - 1.3.2 - March 22, 2026 - Removed default.vcl (now managed by CLI installation template); switched FarmConfigLoader from PECL yaml to Symfony YAML parser; fixed composer hash check to account for require and repositories sections; skip Varnish CDN settings when CANASTA_ENABLE_VARNISH is explicitly disabled (backward compatible: Varnish remains enabled by default)
 - 1.3.3 - April 7, 2026 - Upgrade to MediaWiki 1.43.8; GitHub actions upgrades
+- 1.3.4 - April 10, 2026 - Removed canasta_img.php in favor of upstream img_auth.php; removed public_assets.php so files are served directly from the filesystem; fixed composer hash mismatch and sourced-entry-point bugs at container startup; added opt-in CANASTA_ENABLE_VERY_SHORT_URLS env variable to enable root-relative short URLs in wiki farms (default off)
