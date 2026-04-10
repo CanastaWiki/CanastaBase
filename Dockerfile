@@ -213,7 +213,6 @@ COPY _sources/configs/.htaccess $WWW_ROOT/
 COPY _sources/images/favicon.ico $WWW_ROOT/
 COPY _sources/canasta/LocalSettings.php _sources/canasta/CanastaDefaultSettings.php _sources/canasta/FarmConfigLoader.php _sources/canasta/CanastaFarm404.php $MW_HOME/
 COPY _sources/canasta/getMediawikiSettings.php /
-COPY _sources/canasta/public_assets.php $MW_HOME/
 COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 
 RUN set -x; \
@@ -230,8 +229,12 @@ RUN set -x; \
 	&& sed -i '/<Directory \/var\/www\/>/i RewriteCond %{THE_REQUEST} \\s(.*?)\\s\nRewriteRule ^ - [E=ORIGINAL_URL:%{REQUEST_SCHEME}://%{HTTP_HOST}%1]' /etc/apache2/apache2.conf \
 	&& echo "Alias /w/images/ /var/www/mediawiki/w/img_auth.php/" >> /etc/apache2/apache2.conf \
     && echo "Alias /w/images /var/www/mediawiki/w/img_auth.php" >> /etc/apache2/apache2.conf \
-	&& echo "Alias /public_assets/ /var/www/mediawiki/w/public_assets.php/" >> /etc/apache2/apache2.conf \
-	&& echo "Alias /public_assets /var/www/mediawiki/w/public_assets.php" >> /etc/apache2/apache2.conf \
+	# Public assets are served directly from the per-wiki filesystem
+	# location at /mediawiki/public_assets/<wiki_id>/. The per-wiki
+	# rewrite rules are generated at startup by config-subdir-wikis.sh
+	# (which knows the wiki IDs from wikis.yaml). Here we just allow
+	# Apache to serve files from that path tree.
+	&& printf '\n<Directory /mediawiki/public_assets>\n    Require all granted\n    Options -Indexes\n</Directory>\n' >> /etc/apache2/apache2.conf \
 	&& a2enmod expires remoteip\
 	&& a2disconf other-vhosts-access-log \
 	# Enable environment variables for FPM workers
