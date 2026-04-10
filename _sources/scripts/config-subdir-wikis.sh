@@ -1,37 +1,94 @@
 #!/bin/bash
+#
+# Configure Apache for the wikis registered in wikis.yaml.
+#
+# For each wiki, generates a per-wiki public_assets rewrite rule keyed
+# off %{HTTP_HOST}, so multi-host wiki farms route /public_assets/...
+# requests to the right wiki's filesystem directory at
+# /mediawiki/public_assets/<wiki_id>/.
+#
+# For wikis that live under a URL subdirectory (e.g. example.com/docs),
+# additionally creates the symlink + rewritten .htaccess + img_auth.php
+# aliases that the existing subdir routing relies on.
+#
+# Public assets are served directly by Apache from the bind-mounted
+# filesystem; there is no PHP entry point. The matching <Directory>
+# permission grant is set up at build time in the Dockerfile.
 
-# Parse the YAML file and get wiki paths
-wiki_paths=$(awk -F'/' '/url: .*/ {split($2, arr, "/"); if (arr[length(arr)] != "") print arr[length(arr)]}' $MW_VOLUME/config/wikis.yaml)
+set -e
 
-# An associative array to keep track of processed paths
-declare -A processed_paths
+WIKIS_YAML="$MW_VOLUME/config/wikis.yaml"
 
-# Loop through the paths
-for path in $wiki_paths; do
-  if [[ -z ${processed_paths[$path]} ]]; then
-    # Mark this path as processed
-    processed_paths[$path]=1
+# Walk wikis.yaml and emit one TAB-separated "id<TAB>url" line per wiki.
+# Assumes the canonical canasta wikis.yaml format where each wiki entry
+# starts with "- id: <id>" followed by "  url: <url>" (and optionally
+# more fields). awk tracks the current wiki and flushes when it sees
+# the next entry or end-of-file.
+parse_wikis() {
+    awk '
+        /^- id:/ {
+            if (id != "" && url != "") { print id "\t" url }
+            id = $3
+            url = ""
+        }
+        /^  url:/ { url = $2 }
+        END { if (id != "" && url != "") print id "\t" url }
+    ' "$WIKIS_YAML"
+}
 
-    # Create directory if it doesn't exist
-    mkdir -p $WWW_ROOT/$path
+# Track which subdir paths we have already configured (a single subdir
+# could appear in wikis.yaml under more than one host in a farm).
+declare -A processed_subdirs
 
-    # Create symbolic link to MediaWiki
-    ln -sf $MW_HOME $WWW_ROOT/$path
+while IFS=$'\t' read -r wiki_id wiki_url; do
+    [ -z "$wiki_id" ] && continue
+    [ -z "$wiki_url" ] && continue
 
-    # Modify .htaccess file
-    sed -e "s|w/rest.php/|$path/w/rest.php/|g" \
-    -e "s|w/img_auth.php/|$path/w/img_auth.php/|g" \
-    -e "s|w/public_assets.php/|$path/w/public_assets.php/|g" \
-    -e "s|^/*$ %{DOCUMENT_ROOT}/w/index.php|/*$ %{DOCUMENT_ROOT}/$path/w/index.php|" \
-    -e "s|^\\(.*\\)$ %{DOCUMENT_ROOT}/w/index.php|\\1$ %{DOCUMENT_ROOT}/$path/w/index.php|" \
-    $WWW_ROOT/.htaccess > $WWW_ROOT/$path/.htaccess
+    # Split the url field into host (with optional port) and path.
+    if [[ "$wiki_url" == */* ]]; then
+        wiki_host="${wiki_url%%/*}"
+        wiki_path="${wiki_url#*/}"
+    else
+        wiki_host="$wiki_url"
+        wiki_path=""
+    fi
 
-    # Modify apache2.conf file for img_auth.php
-    echo "Alias /$path/w/images/ /var/www/mediawiki/w/img_auth.php/" >> /etc/apache2/apache2.conf
-    echo "Alias /$path/w/images /var/www/mediawiki/w/img_auth.php" >> /etc/apache2/apache2.conf
+    # Escape regex metachars in the host for use in RewriteCond
+    # (only `.` and `\` matter for the typical host[:port] format).
+    host_re="$(printf '%s' "$wiki_host" | sed -e 's/\\/\\\\/g' -e 's/\./\\./g')"
 
-    # Modify apache2.conf file for public_assets.php
-    echo "Alias /$path/public_assets/ /var/www/mediawiki/w/public_assets.php/" >> /etc/apache2/apache2.conf
-    echo "Alias /$path/public_assets /var/www/mediawiki/w/public_assets.php" >> /etc/apache2/apache2.conf
-  fi
-done
+    # Per-wiki public_assets rewrite. The HTTP_HOST condition makes this
+    # safe for multi-host farms — only the matching host's request paths
+    # get routed to that wiki's storage directory.
+    if [ -n "$wiki_path" ]; then
+        cat >> /etc/apache2/apache2.conf <<APACHE
+RewriteCond %{HTTP_HOST} ^${host_re}\$ [NC]
+RewriteRule ^/${wiki_path}/public_assets/(.*)\$ /mediawiki/public_assets/${wiki_id}/\$1 [L]
+APACHE
+    else
+        cat >> /etc/apache2/apache2.conf <<APACHE
+RewriteCond %{HTTP_HOST} ^${host_re}\$ [NC]
+RewriteRule ^/public_assets/(.*)\$ /mediawiki/public_assets/${wiki_id}/\$1 [L]
+APACHE
+    fi
+
+    # Subdir-wiki additional plumbing (mirrors the previous behavior of
+    # this script for the img_auth.php / .htaccess pieces). Skip when
+    # the wiki lives at the root of its host, or when we have already
+    # configured this subdir for another host.
+    if [ -n "$wiki_path" ] && [ -z "${processed_subdirs[$wiki_path]}" ]; then
+        processed_subdirs[$wiki_path]=1
+
+        mkdir -p "$WWW_ROOT/$wiki_path"
+        ln -sf "$MW_HOME" "$WWW_ROOT/$wiki_path"
+
+        sed -e "s|w/rest.php/|$wiki_path/w/rest.php/|g" \
+            -e "s|w/img_auth.php/|$wiki_path/w/img_auth.php/|g" \
+            -e "s|^/*\$ %{DOCUMENT_ROOT}/w/index.php|/*\$ %{DOCUMENT_ROOT}/$wiki_path/w/index.php|" \
+            -e "s|^\\(.*\\)\$ %{DOCUMENT_ROOT}/w/index.php|\\1\$ %{DOCUMENT_ROOT}/$wiki_path/w/index.php|" \
+            "$WWW_ROOT/.htaccess" > "$WWW_ROOT/$wiki_path/.htaccess"
+
+        echo "Alias /$wiki_path/w/images/ /var/www/mediawiki/w/img_auth.php/" >> /etc/apache2/apache2.conf
+        echo "Alias /$wiki_path/w/images /var/www/mediawiki/w/img_auth.php" >> /etc/apache2/apache2.conf
+    fi
+done < <(parse_wikis)
