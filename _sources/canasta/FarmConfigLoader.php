@@ -7,6 +7,25 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 
 use Symfony\Component\Yaml\Yaml;
 
+// Very-short-URL mode for wiki farms.
+//
+// When CANASTA_ENABLE_VERY_SHORT_URLS is false (the default), wikis can
+// be at either bare hostnames or hostname/subdir URLs, and page URLs
+// look like https://example.com/wiki1/wiki/PageName. The first segment
+// of the request path is treated as a wiki identifier.
+//
+// When set to true, the "/wiki" segment goes away — page URLs become
+// root-relative (https://wiki1.example.com/PageName) via
+// $wgArticlePath = "/$1". Each wiki must then be on its own unique
+// hostname with no path component, because there is no longer a path
+// segment available to identify the wiki. Incompatible with the wiki
+// directory feature and with any path-based wiki in wikis.yaml; both
+// conditions are checked below.
+$veryShortUrls = filter_var(
+    getenv( 'CANASTA_ENABLE_VERY_SHORT_URLS' ),
+    FILTER_VALIDATE_BOOLEAN
+);
+
 // Get the original URL from the environment variables
 $original_url = getenv( 'ORIGINAL_URL' );
 $serverName = "";
@@ -43,8 +62,11 @@ if ( !$cliDefaultToFirstWiki ) {
 		}
 	}
 
-	// Extract the path from the URL, if any
-	if ( isset( $urlComponents['path'] ) ) {
+	// Extract the path from the URL, if any.
+	//
+	// In very-short-URL mode the path is intentionally left empty
+	// — the first URL segment is a page title, not a wiki identifier.
+	if ( !$veryShortUrls && isset( $urlComponents['path'] ) ) {
 		// Split the path into parts
 		$pathParts = explode( '/', trim( $urlComponents['path'], '/' ) );
 
@@ -91,6 +113,31 @@ if ( isset( $wikiConfigurations ) && isset( $wikiConfigurations['wikis'] ) && is
 	foreach ( $wikiConfigurations['wikis'] as $wiki ) {
 		// Check if 'url' and 'id' are set before using them
 		if ( isset( $wiki['url'] ) && isset( $wiki['id'] ) ) {
+			// In very-short-URL mode, every wiki must be on its own
+			// unique hostname with no path component. Reject path-based
+			// URLs early with a clear message — the alternative is
+			// silently routing the wrong wiki to the wrong host. See
+			// issue #138.
+			if ( $veryShortUrls && strpos( $wiki['url'], '/' ) !== false ) {
+				throw new Exception(
+					"FarmConfigLoader: CANASTA_ENABLE_VERY_SHORT_URLS is "
+					. "true but wiki '" . $wiki['id'] . "' has a path-based "
+					. "URL ('" . $wiki['url'] . "'). Path-based wikis are "
+					. "incompatible with very short URLs — each wiki must "
+					. "be on its own unique hostname. Either remove this "
+					. "wiki, change its URL to a unique hostname, or set "
+					. "CANASTA_ENABLE_VERY_SHORT_URLS to false."
+				);
+			}
+			if ( $veryShortUrls && isset( $urlToWikiIdMap[$wiki['url']] ) ) {
+				throw new Exception(
+					"FarmConfigLoader: hostname '" . $wiki['url'] . "' is "
+					. "claimed by both wiki '" . $urlToWikiIdMap[$wiki['url']]
+					. "' and wiki '" . $wiki['id'] . "'. Each wiki must be "
+					. "on a unique hostname when CANASTA_ENABLE_VERY_SHORT_URLS "
+					. "is true."
+				);
+			}
 			$urlToWikiIdMap[$wiki['url']] = $wiki['id'];
 			$wikiIdToConfigMap[$wiki['id']] = $wiki;
 		} else {
@@ -99,6 +146,21 @@ if ( isset( $wikiConfigurations ) && isset( $wikiConfigurations['wikis'] ) && is
 	}
 } else {
 	throw new Exception( 'Error: Invalid wiki configurations.' );
+}
+
+// In very-short-URL mode, the wiki directory feature is incompatible
+// — the directory route /wikis would collide with a page titled
+// "Wikis" on any wiki using root-relative short URLs.
+if ( $veryShortUrls
+	&& getenv( 'CANASTA_ENABLE_WIKI_DIRECTORY' ) === 'true'
+) {
+	throw new Exception(
+		"FarmConfigLoader: CANASTA_ENABLE_VERY_SHORT_URLS is true and "
+		. "CANASTA_ENABLE_WIKI_DIRECTORY is true, but these features "
+		. "are incompatible. The wiki directory is served at /wikis, "
+		. "which collides with a page titled 'Wikis' on any wiki using "
+		. "root-relative short URLs. Disable one or the other."
+	);
 }
 
 // Prepare the key using the server name and the path
@@ -179,9 +241,18 @@ $wgScriptPath = !empty( $path )
 	? "/$path/w"
 	: "/w";
 
-$wgArticlePath = !empty( $path )
-	? "/$path/wiki/$1"
-	: "/wiki/$1";
+// In very-short-URL mode, page URLs are root-relative (no /wiki/
+// segment). $wgScriptPath stays at /w because MediaWiki's own files
+// (api.php, load.php, edit forms, etc.) still live under /w/. The
+// per-wiki Settings.php loaded below can still override $wgArticlePath
+// if a particular wiki needs a different shape.
+if ( $veryShortUrls ) {
+	$wgArticlePath = "/$1";
+} else {
+	$wgArticlePath = !empty( $path )
+		? "/$path/wiki/$1"
+		: "/wiki/$1";
+}
 $wgCacheDirectory = "$IP/cache/$wikiID";
 $wgUploadDirectory = "$IP/images/$wikiID";
 
