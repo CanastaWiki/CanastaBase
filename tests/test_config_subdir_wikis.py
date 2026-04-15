@@ -107,8 +107,17 @@ class TestSubdirWikiPlumbing:
         _, _ = script_runner([{"id": "docs", "url": "example.com/docs"}])
         ws = script_runner.workspace
         docs_htaccess = (ws["www_root"] / "docs" / ".htaccess").read_text()
-        assert "docs/w/img_auth.php/" in docs_htaccess
-        assert "docs/w/rest.php/" in docs_htaccess
+        # The img_auth.php and rest.php passthrough rules must NOT be
+        # prefixed with the wiki path. Inside the subdirectory, Apache
+        # has already stripped the prefix before evaluating .htaccess.
+        assert "w/img_auth.php/" in docs_htaccess
+        assert "docs/w/img_auth.php/" not in docs_htaccess
+        assert "w/rest.php/" in docs_htaccess
+        assert "docs/w/rest.php/" not in docs_htaccess
+        # img_auth.php uses [END] to prevent catch-all re-entry
+        assert "img_auth.php/ - [END]" in docs_htaccess
+        # The catch-all index.php rules DO need the prefix
+        assert "docs/w/index.php" in docs_htaccess
 
     def test_subdir_wiki_emits_img_auth_aliases(self, script_runner):
         cfg, _ = script_runner([{"id": "docs", "url": "example.com/docs"}])
