@@ -87,8 +87,25 @@ APACHE
         mkdir -p "$WWW_ROOT/$wiki_path"
         ln -sf "$MW_HOME" "$WWW_ROOT/$wiki_path"
 
-        sed -e "s|w/rest.php/|$wiki_path/w/rest.php/|g" \
-            -e "s|w/img_auth.php/|$wiki_path/w/img_auth.php/|g" \
+        # Generate the subdirectory .htaccess from the root .htaccess.
+        #
+        # The rest.php and img_auth.php passthrough rules are NOT
+        # prefixed with the wiki path. Apache has already stripped
+        # the subdirectory prefix by the time it evaluates rules
+        # inside the subdirectory's .htaccess, so the paths match
+        # as-is (e.g. w/img_auth.php/, not docs/w/img_auth.php/).
+        #
+        # Both rest.php and img_auth.php rules use [END] instead of
+        # [L] to prevent the rewritten URL from re-entering the
+        # ruleset. After the passthrough, REQUEST_URI contains
+        # PATH_INFO (e.g. /w/img_auth.php/a/ab/File.png) which
+        # doesn't exist as a filesystem path, so the catch-all
+        # "not a file" rule would otherwise redirect to index.php.
+        #
+        # The catch-all index.php rules DO need the prefix because
+        # the symlink routes $wiki_path/w/ → the real MW /w/.
+        sed -e "s|rest.php/ - \[L\]|rest.php/ - [END]|" \
+            -e "s|img_auth.php/ - \[L\]|img_auth.php/ - [END]|" \
             -e "s|^/*\$ %{DOCUMENT_ROOT}/w/index.php|/*\$ %{DOCUMENT_ROOT}/$wiki_path/w/index.php|" \
             -e "s|^\\(.*\\)\$ %{DOCUMENT_ROOT}/w/index.php|\\1\$ %{DOCUMENT_ROOT}/$wiki_path/w/index.php|" \
             "$WWW_ROOT/.htaccess" > "$WWW_ROOT/$wiki_path/.htaccess"
