@@ -114,7 +114,8 @@ class TestSubdirWikiPlumbing:
         assert "docs/w/img_auth.php/" not in docs_htaccess
         assert "w/rest.php/" in docs_htaccess
         assert "docs/w/rest.php/" not in docs_htaccess
-        # img_auth.php uses [END] to prevent catch-all re-entry
+        # Both use [END] to prevent catch-all re-entry
+        assert "rest.php/ - [END]" in docs_htaccess
         assert "img_auth.php/ - [END]" in docs_htaccess
         # The catch-all index.php rules DO need the prefix
         assert "docs/w/index.php" in docs_htaccess
