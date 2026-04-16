@@ -41,6 +41,8 @@ def workspace(tmp_path):
         "RewriteRule ^/?w/rest.php/ - [L]\n"
         "RewriteRule ^/?w/img_auth.php/ - [L]\n"
         "RewriteRule ^/*$ %{DOCUMENT_ROOT}/w/index.php [L]\n"
+        "RewriteRule ^/?[^/]+/w/(load|api|rest|index|img_auth)\\.php(.*)$"
+        " %{DOCUMENT_ROOT}/w/$1.php$2 [L,QSA]\n"
         "RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f\n"
         "RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-d\n"
         "RewriteRule ^(.*)$ %{DOCUMENT_ROOT}/w/index.php [L]\n"
