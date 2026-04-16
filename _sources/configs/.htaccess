@@ -18,6 +18,13 @@ RewriteRule ^/?robots\.txt$ robots.php [NC,L]
 # Redirect / to Main Page
 RewriteRule ^/*$ %{DOCUMENT_ROOT}/w/index.php [L]
 
+# Wiki farm sub-path support: route /wikiid/w/load.php (etc.) to
+# the real PHP entry point. Without this, sub-path wiki requests for
+# load.php, api.php, etc. fall through to the catch-all and get
+# served by index.php, which returns HTML instead of the expected
+# resource (CSS, JSON, etc.).
+RewriteRule ^/?[^/]+/w/(load|api|rest|index|img_auth)\.php(.*)$ %{DOCUMENT_ROOT}/w/$1.php$2 [L,QSA]
+
 # see https://www.mediawiki.org/wiki/Manual:Short_URL/Apache
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-d
