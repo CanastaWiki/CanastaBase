@@ -82,8 +82,9 @@ $wgUseInstantCommons = false;
 
 # Database connection (from environment, can be overridden by config/LocalSettings.php)
 $wgDBtype = "mysql";
-$wgDBserver = "db";
-$wgDBuser = "root";
+$wgDBserver = getenv( 'MYSQL_HOST' ) ?: 'db';
+$wgDBport = getenv( 'MYSQL_PORT' ) ?: '3306';
+$wgDBuser = getenv( 'MYSQL_USER' ) ?: 'root';
 $wgDBpassword = getenv( 'MYSQL_PASSWORD' ) ?: 'mediawiki';
 
 # Secret key (from environment, can be overridden by config/LocalSettings.php)
@@ -95,7 +96,7 @@ $wgAuthenticationTokenVersion = "1";
 
 # MySQL defaults
 $wgDBprefix = "";
-$wgDBssl = false;
+$wgDBssl = filter_var( getenv( 'MYSQL_SSL' ), FILTER_VALIDATE_BOOLEAN );
 $wgDBTableOptions = "ENGINE=InnoDB, DEFAULT CHARSET=binary";
 
 # Semantic MediaWiki: store smw.json on the persistent volume
