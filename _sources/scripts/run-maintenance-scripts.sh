@@ -38,7 +38,7 @@ waitdatabase() {
       if [[ "$WG_DB_SERVER" == *:* ]]; then
        DB_SERVER_WITH_PORT="$WG_DB_SERVER"
       else
-        DB_SERVER_WITH_PORT="$WG_DB_SERVER:3306"
+        DB_SERVER_WITH_PORT="$WG_DB_SERVER:${MYSQL_PORT:-3306}"
       fi
       /wait-for-it.sh -t 86400 "$DB_SERVER_WITH_PORT"
   
