@@ -37,7 +37,8 @@ jobs:
   # The image tag pattern is:
   # for pull-requests: <MW_CORE_VERSION>-<DATE>-<PR_NUMBER>, eg: 1.35.2-20210125-25
   # for tags: <TAG>
-  # for `master` branch: latest + <MW_VERSION>-latest + <MW_CORE_VERSION>-<DATE>-<SHA>
+  # for `master` branch: latest + <MW_MAJOR>-latest + <MW_VERSION>-latest + <MW_VERSION>-<DATE>-<SHA>
+  #   (plus <CANASTA_VERSION> when VERSION file changes)
   # <MW_CORE_VERSION> being parsed from the Dockerfile
   push:
     needs: [test]
@@ -88,8 +89,14 @@ jobs:
           # Compose REGISTRY_TAGS variable
           REGISTRY_TAGS=$IMAGE_ID:$VERSION
 
-          # For master branch also supply an extra tag: <MW_VERSION>-latest,<MW_VERSION>-<DATE>-<SHA>
-          [ "$VERSION" == "latest" ] && REGISTRY_TAGS=$REGISTRY_TAGS,$IMAGE_ID:$CANASTA_VERSION,$IMAGE_ID:$MEDIAWIKI_MAJOR_VERSION-latest,$IMAGE_ID:$MEDIAWIKI_VERSION-latest,$IMAGE_ID:$MEDIAWIKI_VERSION-$BDATE-$(git rev-parse --short HEAD)
+          # For master branch also supply extra tags: <MW_MAJOR>-latest, <MW_VERSION>-latest, <MW_VERSION>-<DATE>-<SHA>
+          [ "$VERSION" == "latest" ] && REGISTRY_TAGS=$REGISTRY_TAGS,$IMAGE_ID:$MEDIAWIKI_MAJOR_VERSION-latest,$IMAGE_ID:$MEDIAWIKI_VERSION-latest,$IMAGE_ID:$MEDIAWIKI_VERSION-$BDATE-$(git rev-parse --short HEAD)
+
+          # Publish the immutable Canasta version tag (e.g., 1.3.6) only when
+          # the VERSION file changed in this push, so the tag is set once per release.
+          if [ "$VERSION" == "latest" ] && git diff HEAD~1 --name-only | grep -q '^VERSION$'; then
+            REGISTRY_TAGS=$REGISTRY_TAGS,$IMAGE_ID:$CANASTA_VERSION
+          fi
 
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
