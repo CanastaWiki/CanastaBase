@@ -83,7 +83,11 @@ $wgUseInstantCommons = false;
 # Database connection (from environment, can be overridden by config/LocalSettings.php)
 $wgDBtype = "mysql";
 $wgDBserver = getenv( 'MYSQL_HOST' ) ?: 'db';
-$wgDBport = getenv( 'MYSQL_PORT' ) ?: '3306';
+$_dbPort = getenv( 'MYSQL_PORT' ) ?: '3306';
+if ( $_dbPort !== '3306' ) {
+	$wgDBserver .= ':' . $_dbPort;
+}
+$wgDBport = $_dbPort;
 $wgDBuser = getenv( 'MYSQL_USER' ) ?: 'root';
 $wgDBpassword = getenv( 'MYSQL_PASSWORD' ) ?: 'mediawiki';
 
