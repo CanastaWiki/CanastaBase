@@ -81,13 +81,15 @@ $wgPingback = false;
 $wgUseInstantCommons = false;
 
 # Database connection (from environment, can be overridden by config/LocalSettings.php)
+# $wgDBport is intentionally not set — MediaWiki's MySQL driver ignores
+# it (only the PostgreSQL driver honors $wgDBport). Non-standard ports
+# are communicated via host:port on $wgDBserver.
 $wgDBtype = "mysql";
 $wgDBserver = getenv( 'MYSQL_HOST' ) ?: 'db';
 $_dbPort = getenv( 'MYSQL_PORT' ) ?: '3306';
 if ( $_dbPort !== '3306' ) {
 	$wgDBserver .= ':' . $_dbPort;
 }
-$wgDBport = $_dbPort;
 $wgDBuser = getenv( 'MYSQL_USER' ) ?: 'root';
 $wgDBpassword = getenv( 'MYSQL_PASSWORD' ) ?: 'mediawiki';
 
