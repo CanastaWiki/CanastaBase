@@ -47,6 +47,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # fetch-depth: 2 so HEAD~1 is available in the "Generate tags"
+          # step below, which inspects the diff between the two newest
+          # commits to detect VERSION-file changes. Default fetch-depth
+          # of 1 leaves HEAD~1 unreachable, silently suppresses the
+          # Canasta version tag, and caused 1.3.7 to publish without
+          # its immutable tag.
+          fetch-depth: 2
       -
         name: Generate tags
         id: generate
