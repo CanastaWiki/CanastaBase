@@ -189,6 +189,7 @@ ENV MW_AUTOUPDATE=true \
 	PHP_MAX_INPUT_VARS=1000 \
 	PHP_MAX_EXECUTION_TIME=60 \
 	PHP_MAX_INPUT_TIME=60 \
+	PHP_MEMORY_LIMIT=256M \
 	PM_MAX_CHILDREN=25 \
 	PM_START_SERVERS=10 \
 	PM_MIN_SPARE_SERVERS=5 \
@@ -199,8 +200,8 @@ ENV MW_AUTOUPDATE=true \
 
 COPY _sources/configs/mediawiki.conf /etc/apache2/sites-enabled/
 COPY _sources/configs/status.conf /etc/apache2/mods-available/
-COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini /etc/php/8.2/cli/conf.d/
-COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini /etc/php/8.2/fpm/conf.d/
+COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/cli/conf.d/
+COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/fpm/conf.d/
 COPY _sources/configs/php_max_input_vars.ini _sources/configs/php_max_input_vars.ini /etc/php/8.2/fpm/conf.d/
 COPY _sources/configs/php_timeouts.ini /etc/php/8.2/fpm/conf.d/
 COPY _sources/configs/php-fpm-www.conf /etc/php/8.2/fpm/pool.d/www.conf
