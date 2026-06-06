@@ -37,6 +37,8 @@ RUN set x; \
 	lsb-release \
 	imagemagick  \
 	librsvg2-bin \
+	ghostscript \
+	xpdf-utils \
 	python3-pygments \
 	patch \
 	vim \
