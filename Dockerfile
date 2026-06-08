@@ -35,10 +35,10 @@ RUN set x; \
 	ca-certificates \
 	wget \
 	lsb-release \
+	poppler-utils \
 	imagemagick  \
 	librsvg2-bin \
 	ghostscript \
-	xpdf-utils \
 	python3-pygments \
 	patch \
 	vim \
@@ -51,7 +51,6 @@ RUN set x; \
 	default-mysql-client \
 	rsync \
 	lynx \
-	poppler-utils \
 	php \
 	php-mysql \
 	php-cli \
