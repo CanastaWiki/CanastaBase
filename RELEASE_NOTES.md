@@ -21,3 +21,4 @@ CanastaBase version history:
 - 1.3.6 - April 16, 2026 - Fixed .htaccess to route sub-path wiki entry points (load.php, api.php, rest.php, index.php, img_auth.php) to the real PHP files instead of falling through to the catch-all rewrite; fixes broken skin rendering and API access on wiki farms with sub-path wikis
 - 1.3.7 - April 20, 2026 - Added external database support: $wgDBserver, $wgDBuser, and $wgDBpassword now read from MYSQL_HOST, MYSQL_USER, and MYSQL_PASSWORD environment variables; non-standard database ports are appended to $wgDBserver as host:port; version tag publishing workflow now only fires on VERSION changes, making the published tag immutable
 - 1.3.8 - June 7, 2026 - Add Ghostscript and Xpdfutils to support PDF rendering and thumbnailing
+- 1.3.9 - June 8, 2026 - Removed the redundant addition of Xpdfutils in favor of the existing and modern alternative, Poppler Utils
