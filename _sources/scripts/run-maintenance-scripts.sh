@@ -30,21 +30,21 @@ waitdatabase() {
     if [ "$WG_DB_TYPE" != "mysql" ]; then
         if [ -z "$WG_DB_TYPE" ] && isTrue "$USE_EXTERNAL_DB"; then
             echo >&2 "LocalSettings.php not yet generated — install.php may still be running. Retrying..."
-            sleep 2
-            WG_DB_TYPE=$(get_mediawiki_db_var wgDBtype)
-            if [ "$WG_DB_TYPE" = "mysql" ]; then
-                echo >&2 "Database type now available, continuing."
-            else
-                for i in $(seq 1 30); do
-                    sleep 2
-                    WG_DB_TYPE=$(get_mediawiki_db_var wgDBtype)
-                    if [ "$WG_DB_TYPE" = "mysql" ]; then
-                        echo >&2 "Database type detected after ${i} retries."
-                        break
-                    fi
-                    echo >&2 "Waiting for LocalSettings.php (attempt $i/30)..."
-                done
-            fi
+            for i in {1..31}; do
+                sleep 2
+                WG_DB_TYPE=$(get_mediawiki_db_var wgDBtype)
+                if [ "$WG_DB_TYPE" = "mysql" ]; then
+                    echo >&2 "Database type detected after ${i} attempt(s)."
+                    # LocalSettings.php now exists; the DB vars snapshotted at
+                    # script start were empty, so reload the rest to match.
+                    WG_DB_SERVER=$(get_mediawiki_db_var wgDBserver)
+                    WG_DB_NAME=$(get_mediawiki_db_var wgDBname)
+                    WG_DB_USER=$(get_mediawiki_db_var wgDBuser)
+                    WG_DB_PASSWORD=$(get_mediawiki_db_var wgDBpassword)
+                    break
+                fi
+                echo >&2 "Waiting for LocalSettings.php (attempt $i/31)..."
+            done
         fi
         if [ "$WG_DB_TYPE" != "mysql" ]; then
             echo >&2 "Unsupported database type ($WG_DB_TYPE)"
