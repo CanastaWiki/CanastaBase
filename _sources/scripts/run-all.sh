@@ -111,15 +111,21 @@ else
     chmod -R g=rwX "$APACHE_LOG_DIR"
 fi
 
-echo "Checking permissions of PHP-FPM log dir $PHP_LOG_DIR..."
-if ! mountpoint -q -- "$PHP_LOG_DIR/"; then
-    mkdir -p "$MW_VOLUME/log/php-fpm"
-    rsync -avh --ignore-existing "$PHP_LOG_DIR/" "$MW_VOLUME/log/php-fpm/"
-    mv "$PHP_LOG_DIR" "${PHP_LOG_DIR}_old"
-    ln -s "$MW_VOLUME/log/php-fpm" "$PHP_LOG_DIR"
+# Skip when PHP_LOG_DIR is unset — an empty path makes mountpoint test "/"
+# (always a mountpoint) and then runs chgrp/chmod on '', which errors every boot.
+if [ -z "$PHP_LOG_DIR" ]; then
+    echo "PHP_LOG_DIR is unset — skipping PHP-FPM log dir setup."
 else
-    chgrp -R "$WWW_GROUP" "$PHP_LOG_DIR"
-    chmod -R g=rwX "$PHP_LOG_DIR"
+    echo "Checking permissions of PHP-FPM log dir $PHP_LOG_DIR..."
+    if ! mountpoint -q -- "$PHP_LOG_DIR/"; then
+        mkdir -p "$MW_VOLUME/log/php-fpm"
+        rsync -avh --ignore-existing "$PHP_LOG_DIR/" "$MW_VOLUME/log/php-fpm/"
+        mv "$PHP_LOG_DIR" "${PHP_LOG_DIR}_old"
+        ln -s "$MW_VOLUME/log/php-fpm" "$PHP_LOG_DIR"
+    else
+        chgrp -R "$WWW_GROUP" "$PHP_LOG_DIR"
+        chmod -R g=rwX "$PHP_LOG_DIR"
+    fi
 fi
 
 config_subdir_wikis() {
