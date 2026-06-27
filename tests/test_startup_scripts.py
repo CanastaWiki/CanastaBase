@@ -219,3 +219,131 @@ class TestComposerHashFileLocation:
             "$MW_ORIGIN_FILES/config/persistent/.composer-deps-hash"
             not in content
         ), "build-time baseline must not write to $MW_ORIGIN_FILES anymore"
+
+
+# ---------------------------------------------------------------------------
+# monitor-directories.sh: live extension/skin symlink maintenance
+# ---------------------------------------------------------------------------
+
+
+MONITOR_SCRIPT = os.path.join(
+    REPO_ROOT, "_sources", "scripts", "maintenance-scripts",
+    "monitor-directories.sh",
+)
+
+
+def _handle_events(events, user_dir, link_dir, canonical_dir):
+    """Source monitor-directories.sh and feed synthetic inotify event
+    lines ("event:file", as produced by --format '%e:%f') to its
+    handle_dir_events function. Sourcing returns early via the
+    BASH_SOURCE guard, so no real inotifywait runs. The missing
+    /functions.sh is harmless (the script has no `set -e`)."""
+    snippet = textwrap.dedent("""
+        . %(script)s >/dev/null 2>&1
+        set +x
+        printf '%%s\\n' %(events)s \
+            | handle_dir_events "%(user)s" "%(link)s" "%(canon)s"
+    """) % {
+        "script": MONITOR_SCRIPT,
+        "events": " ".join("'%s'" % e for e in events),
+        "user": user_dir,
+        "link": link_dir,
+        "canon": canonical_dir,
+    }
+    return subprocess.run(
+        ["bash", "-c", snippet], capture_output=True, text=True,
+    )
+
+
+class TestMonitorDirectories:
+    """handle_dir_events must maintain symlinks based on a stat of the
+    source path, NOT on inotify's ISDIR flag. Docker Desktop on macOS
+    strips ISDIR from host-side bind-mount events, so a directory create
+    arrives as a bare CREATE; the watcher must still link it."""
+
+    def _layout(self, tmp_path):
+        user = tmp_path / "user-extensions"
+        link = tmp_path / "extensions"
+        canon = tmp_path / "canasta-extensions"
+        for d in (user, link, canon):
+            d.mkdir()
+        return user, link, canon
+
+    def test_bare_create_links_directory(self, tmp_path):
+        """The macOS case: CREATE without ISDIR still links a dir."""
+        user, link, canon = self._layout(tmp_path)
+        (user / "MyExt").mkdir()
+        _handle_events(["CREATE:MyExt"], user, link, canon)
+        target = link / "MyExt"
+        assert target.is_symlink(), "bare CREATE did not create the symlink"
+        assert os.path.realpath(target) == str(user / "MyExt")
+
+    def test_isdir_create_links_directory(self, tmp_path):
+        """The Linux case stays working: CREATE,ISDIR links a dir."""
+        user, link, canon = self._layout(tmp_path)
+        (user / "MyExt").mkdir()
+        _handle_events(["CREATE,ISDIR:MyExt"], user, link, canon)
+        assert (link / "MyExt").is_symlink()
+
+    def test_moved_to_links_directory(self, tmp_path):
+        """MOVED_TO (with or without ISDIR) behaves like CREATE."""
+        user, link, canon = self._layout(tmp_path)
+        (user / "MyExt").mkdir()
+        _handle_events(["MOVED_TO:MyExt"], user, link, canon)
+        assert (link / "MyExt").is_symlink()
+
+    def test_create_ignores_plain_file(self, tmp_path):
+        """A non-directory entry must never be symlinked (e.g. .gitkeep)."""
+        user, link, canon = self._layout(tmp_path)
+        (user / "README").write_text("x")
+        _handle_events(["CREATE:README"], user, link, canon)
+        assert not (link / "README").exists(), (
+            "a plain file should not be linked into extensions/"
+        )
+
+    def test_delete_reverts_to_bundled(self, tmp_path):
+        """Removing a user dir that shadows a bundled one reverts the
+        link to the bundled copy."""
+        user, link, canon = self._layout(tmp_path)
+        (canon / "MyExt").mkdir()
+        # Pre-existing user override link, now the source is gone.
+        (link / "MyExt").symlink_to(user / "MyExt")
+        _handle_events(["DELETE:MyExt"], user, link, canon)
+        target = link / "MyExt"
+        assert target.is_symlink()
+        assert os.path.realpath(target) == str(canon / "MyExt"), (
+            "delete should revert the link to the bundled extension"
+        )
+
+    def test_delete_removes_link_when_no_bundled(self, tmp_path):
+        """Removing a purely-custom user dir removes the dangling link."""
+        user, link, canon = self._layout(tmp_path)
+        (link / "MyExt").symlink_to(user / "MyExt")
+        _handle_events(["DELETE:MyExt"], user, link, canon)
+        assert not (link / "MyExt").exists() and \
+            not (link / "MyExt").is_symlink(), (
+            "delete with no bundled copy should remove the link"
+        )
+
+    def test_delete_leaves_unmanaged_entry_alone(self, tmp_path):
+        """A delete event must not clobber a real (non-symlink) entry we
+        did not create."""
+        user, link, canon = self._layout(tmp_path)
+        real = link / "Keep"
+        real.mkdir()
+        (real / "marker").write_text("x")
+        _handle_events(["DELETE:Keep"], user, link, canon)
+        assert real.is_dir() and (real / "marker").exists(), (
+            "delete must not touch an unmanaged real directory"
+        )
+
+    def test_sourcing_does_not_launch_watchers(self, tmp_path):
+        """Sourcing the script (for its functions) must not start
+        inotifywait — the BASH_SOURCE guard returns first."""
+        result = subprocess.run(
+            ["bash", "-c",
+             ". %s >/dev/null 2>&1; type handle_dir_events >/dev/null "
+             "&& echo HAS:handle_dir_events" % MONITOR_SCRIPT],
+            capture_output=True, text=True,
+        )
+        assert "HAS:handle_dir_events" in result.stdout
