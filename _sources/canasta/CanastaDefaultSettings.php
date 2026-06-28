@@ -164,6 +164,12 @@ function isEnvTrue( $name ): bool {
  */
 function canastaLoadConfigYaml( $configDir ) {
 	global $wgSettings;
+	if ( $wgSettings === null ) {
+		// Reached outside a normal request bootstrap (e.g. PHPUnit's
+		// extension-discovery runner sources LocalSettings.php without
+		// initialising Setup.php, so $wgSettings is never created).
+		return;
+	}
 	$yamlFiles = glob( $configDir . '/*.yaml' );
 	if ( $yamlFiles === false || !is_array( $yamlFiles ) ) {
 		return;
