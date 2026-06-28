@@ -179,6 +179,11 @@ if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ 
   SMW_JSON="$MW_VOLUME/config/persistent/.smw.json"
   if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
     mkdir -p "$MW_VOLUME/config/persistent"
+    # Heal config/persistent ownership before run_autoupdate so setupStore.php
+    # (invoked by update.php) can write .smw.json. The recursive make_dir_writable
+    # on $MW_VOLUME runs later and in the background — too late for setupStore on
+    # this start. Scoped to just this directory to stay cheap.
+    make_dir_writable "$MW_VOLUME/config/persistent"
     SMW_WIKIS_BEFORE=""
     if [ -f "$SMW_JSON" ]; then
       SMW_WIKIS_BEFORE=$(php -r "
