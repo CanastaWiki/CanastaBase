@@ -18,6 +18,7 @@ These cover the bugs fixed for #141 / #143:
 """
 
 import os
+import re
 import subprocess
 import textwrap
 
@@ -219,6 +220,32 @@ class TestComposerHashFileLocation:
             "$MW_ORIGIN_FILES/config/persistent/.composer-deps-hash"
             not in content
         ), "build-time baseline must not write to $MW_ORIGIN_FILES anymore"
+
+
+class TestPersistentDirWritableBeforeAutoupdate:
+    """#172 — config/persistent must be made writable by the web user
+    *before* run_autoupdate, so setupStore.php (invoked by update.php) can
+    persist .smw.json. The recursive make_dir_writable on $MW_VOLUME runs
+    later and in the background, too late to help SMW on the current start."""
+
+    def test_persistent_healed_before_run_autoupdate(self):
+        with open(os.path.join(
+            REPO_ROOT, "_sources", "scripts", "run-all.sh",
+        )) as f:
+            content = f.read()
+
+        heal = content.find('make_dir_writable "$MW_VOLUME/config/persistent"')
+        assert heal != -1, (
+            "expected a targeted make_dir_writable on $MW_VOLUME/config/persistent"
+        )
+
+        # Match the call line itself, not the surrounding comments that
+        # also mention run_autoupdate.
+        call = re.search(r"^\s*run_autoupdate\s*$", content, re.MULTILINE)
+        assert call is not None, "run_autoupdate call should exist"
+        assert heal < call.start(), (
+            "config/persistent must be healed before run_autoupdate, not after"
+        )
 
 
 # ---------------------------------------------------------------------------
