@@ -9,8 +9,9 @@
  *
  * Usage: php verify-composer-deps.php <MW_HOME>
  *
- * Prints a WARNING line per missing package and always exits 0 — this is an
- * advisory guardrail and must not block container startup.
+ * Prints a line per missing package and exits non-zero if any are missing, so
+ * it can gate the image build (see extensions-skins.php). Exits 0 when the
+ * vendor/ is complete or there is nothing to check.
  */
 
 $mwHome = $argv[1] ?? getenv('MW_HOME');
@@ -71,11 +72,12 @@ foreach ($includes as $pattern) {
 }
 
 if ($missing) {
-    fwrite(STDERR, "WARNING: Composer dependencies missing after install — "
+    fwrite(STDERR, "ERROR: Composer dependencies missing after install — "
         . "composer.local.json or vendor/ is incomplete:\n");
     foreach (array_unique($missing) as $entry) {
         fwrite(STDERR, "  - $entry\n");
     }
+    exit(1);
 }
 
 exit(0);
