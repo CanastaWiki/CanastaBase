@@ -3,8 +3,11 @@ FROM debian:12.8 AS base
 LABEL maintainers=""
 LABEL org.opencontainers.image.source=https://github.com/CanastaWiki/CanastaBase
 
-ENV MW_VERSION=REL1_43 \
-	MW_CORE_VERSION=1.43.8 \
+ARG MW_VERSION=REL1_43
+ARG MW_CORE_VERSION=1.43.8
+
+ENV MW_VERSION=${MW_VERSION} \
+	MW_CORE_VERSION=${MW_CORE_VERSION} \
 	WWW_ROOT=/var/www/mediawiki \
 	MW_HOME=/var/www/mediawiki/w \
 	MW_LOG=/var/log/mediawiki \
