@@ -23,18 +23,20 @@ mkdir -p "$MW_VOLUME"/l10n_cache
 # Unified composer autoloader
 #
 # The Canasta image builds a unified vendor/autoload.php at build time using
-# composer.local.json with merge-plugin includes for specific bundled
-# extensions/skins that have composer dependencies. At runtime, we check
-# whether the user's config/composer.local.json differs from what was used
-# at build time and re-run composer update if so. Users who add extensions
-# with composer dependencies should manually add entries to
-# config/composer.local.json.
+# composer.local.json with merge-plugin includes for the bundled
+# extensions/skins that have composer dependencies. That baked list is written
+# to $MW_HOME/composer.local.json and to the image origin copy
+# ($MW_ORIGIN_FILES/config/composer.local.json), the latter seeded into the
+# volume on first start.
 #
-# Behavior based on config/composer.local.json state:
-#   - Missing: build-time autoloader is preserved as-is, no runtime update
-#   - Identical to build-time version: no runtime update needed
-#   - Changed (includes, require, repositories, etc.): copied to $MW_HOME,
-#     hash-checked, composer update runs if changed
+# The volume copy is seeded once and then frozen: run-all.sh syncs it with
+# rsync --ignore-existing, which never overwrites an existing file. Across an
+# image upgrade it therefore keeps the OLD include list, and a stale list would
+# silently drop bundled extensions (their Composer libraries vanish from
+# vendor/, surfacing as "Class ... not found"). To prevent that, merge the
+# user's volume copy ON TOP OF the pristine baked origin copy: bundled entries
+# can never be removed, while user additions (include / require / repositories)
+# are preserved. See issue #186.
 #
 # The hash file lives at $MW_HOME/.composer-deps-hash, INSIDE the
 # container (not on the bind-mounted $MW_VOLUME). This is intentional:
@@ -44,24 +46,12 @@ mkdir -p "$MW_VOLUME"/l10n_cache
 # hash on $MW_VOLUME would survive container recreates but vendor/
 # would not, causing the post-recreate start to skip composer with a
 # matching hash and a missing vendor (issue #141).
-#
-# To opt out of runtime composer updates, delete config/composer.local.json.
-# The build-time autoloader will be used as-is.
-COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
+BAKED_COMPOSER="$MW_ORIGIN_FILES/config/composer.local.json"
+USER_COMPOSER="$MW_VOLUME/config/composer.local.json"
 COMPOSER_HASH_FILE="$MW_HOME/.composer-deps-hash"
-NEEDS_COMPOSER=false
-if [ -f "$COMPOSER_LOCAL" ]; then
-  NEEDS_COMPOSER=$(php -r '
-    $data = json_decode(file_get_contents("'"$COMPOSER_LOCAL"'"), true);
-    if (!is_array($data)) { echo "false"; exit; }
-    $include = $data["extra"]["merge-plugin"]["include"] ?? [];
-    $require = $data["require"] ?? [];
-    $repos = $data["repositories"] ?? [];
-    echo (count($include) > 0 || count($require) > 0 || count($repos) > 0) ? "true" : "false";
-  ')
-fi
-if [ "$NEEDS_COMPOSER" = "true" ]; then
-  cp "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"
+if [ -f "$BAKED_COMPOSER" ] || [ -f "$USER_COMPOSER" ]; then
+  php "$MW_HOME/maintenance/merge-composer-local.php" \
+    "$BAKED_COMPOSER" "$USER_COMPOSER" "$MW_HOME/composer.local.json"
   CURRENT_HASH=$(php -r '
     $clj = json_decode(file_get_contents("'"$MW_HOME"'/composer.local.json"), true);
     $patterns = $clj["extra"]["merge-plugin"]["include"] ?? [];
@@ -82,11 +72,12 @@ if [ "$NEEDS_COMPOSER" = "true" ]; then
     echo "Composer dependencies changed, running composer update..."
     composer update --working-dir="$MW_HOME" --no-dev --no-interaction
     echo "$CURRENT_HASH" > "$COMPOSER_HASH_FILE"
+    php "$MW_HOME/maintenance/verify-composer-deps.php" "$MW_HOME"
   else
     echo "Composer dependencies unchanged, skipping update."
   fi
 else
-  echo "No composer dependencies in composer.local.json, using build-time autoloader."
+  echo "No composer.local.json present, using build-time autoloader."
 fi
 
 /update-docker-gateway.sh
