@@ -156,12 +156,32 @@ file_put_contents("$MW_HOME/composer.local.json", $composerLocalJson);
 exec("mkdir -p $MW_ORIGIN_FILES/config");
 file_put_contents("$MW_ORIGIN_FILES/config/composer.local.json", $composerLocalJson);
 
-// Run unified composer update at the MediaWiki root
+// Run unified composer update at the MediaWiki root.
+// Fail the build on a non-zero exit instead of shipping an image whose
+// vendor/ is missing the bundled extensions' Composer dependencies. A
+// version conflict between MediaWiki core and a bundled extension (e.g. an
+// incompatible wikimedia/css-sanitizer pin) makes resolution fail and
+// install nothing, which previously surfaced only as a runtime
+// "Class ... not found" fatal in the shipped image.
 echo "Running unified composer update...\n";
 $composerUpdateCmd = "composer update --working-dir=$MW_HOME --no-dev --no-interaction";
 passthru($composerUpdateCmd, $composerReturnCode);
 if ($composerReturnCode !== 0) {
-    echo "WARNING: composer update exited with code $composerReturnCode\n";
+    fwrite(STDERR, "ERROR: composer update exited with code $composerReturnCode; "
+        . "bundled extension dependencies were not installed. Aborting the build.\n");
+    exit($composerReturnCode);
+}
+
+// Belt-and-suspenders: composer can exit 0 while the merge plugin silently
+// skips an include, so verify every merged-in extension's required packages
+// actually landed in vendor/. A miss means a broken image — fail the build.
+$verifyScript = "$MW_HOME/maintenance/verify-composer-deps.php";
+if (is_file($verifyScript)) {
+    passthru("php " . escapeshellarg($verifyScript) . " " . escapeshellarg($MW_HOME), $verifyReturnCode);
+    if ($verifyReturnCode !== 0) {
+        fwrite(STDERR, "ERROR: composer dependency self-test failed. Aborting the build.\n");
+        exit($verifyReturnCode);
+    }
 }
 
 // Save a hash of composer.local.json + all referenced extension/skin
