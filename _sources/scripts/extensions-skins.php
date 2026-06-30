@@ -66,8 +66,21 @@ foreach (['extensions', 'skins'] as $type) {
             $gitCloneCmd .= "$repository $MW_HOME/canasta-$type/$name";
             $gitCheckoutCmd = "cd $MW_HOME/canasta-$type/$name && git checkout -q $commit";
 
-            exec($gitCloneCmd);
-            exec($gitCheckoutCmd);
+            // Fail the build on a git failure instead of shipping the
+            // extension at the wrong revision. A clone failure leaves nothing;
+            // a failed checkout (e.g. an unreachable pinned commit) silently
+            // leaves the extension on the clone's default branch or branch
+            // HEAD, which ships code that was never intended.
+            exec($gitCloneCmd, $cloneOutput, $cloneReturnCode);
+            if ($cloneReturnCode !== 0) {
+                fwrite(STDERR, "ERROR: git clone failed for $type/$name (exit $cloneReturnCode). Aborting the build.\n");
+                exit($cloneReturnCode);
+            }
+            exec($gitCheckoutCmd, $checkoutOutput, $checkoutReturnCode);
+            if ($checkoutReturnCode !== 0) {
+                fwrite(STDERR, "ERROR: git checkout $commit failed for $type/$name (exit $checkoutReturnCode); the pinned commit may be unreachable. Aborting the build.\n");
+                exit($checkoutReturnCode);
+            }
         }
 
         if ($patches !== null) {
