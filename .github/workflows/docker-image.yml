@@ -58,6 +58,10 @@ jobs:
       -
         name: Generate tags
         id: generate
+        # docker manifest inspect handles the anonymous token dance itself, so
+        # the registry-existence check below works without logging in.
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
         run: |
 
           # Image ID
@@ -112,7 +116,15 @@ jobs:
             DIFF_BASE="$BEFORE_SHA"
           fi
           if [ "$VERSION" == "latest" ] && git diff "$DIFF_BASE" HEAD --name-only | grep -q '^VERSION$'; then
-            REGISTRY_TAGS=$REGISTRY_TAGS,$IMAGE_ID:$CANASTA_VERSION
+            # The version tag is meant to be immutable. If it already exists in
+            # the registry (e.g. this workflow was re-run, or a later master
+            # push landed after the release), do not re-push it from a different
+            # commit; warn instead so the mismatch is visible in the run log.
+            if docker manifest inspect "$IMAGE_ID:$CANASTA_VERSION" >/dev/null 2>&1; then
+              echo "::warning::Immutable tag $CANASTA_VERSION already exists in the registry; not re-pushing it from this commit."
+            else
+              REGISTRY_TAGS=$REGISTRY_TAGS,$IMAGE_ID:$CANASTA_VERSION
+            fi
           fi
 
           echo IMAGE_ID=$IMAGE_ID
