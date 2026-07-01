@@ -5,30 +5,24 @@ get_mediawiki_variable() {
 
 get_mediawiki_db_var() {
     case $1 in
-        "wgDBtype")
-            I="type"
-            ;;
-        "wgDBserver")
-            I="host"
-            ;;
-        "wgDBname")
-            I="dbname"
-            ;;
-        "wgDBuser")
-            I="user"
-            ;;
-        "wgDBpassword")
-            I="password"
-            ;;
+        "wgDBtype")     field="type" ;;
+        "wgDBserver")   field="host" ;;
+        "wgDBname")     field="dbname" ;;
+        "wgDBuser")     field="user" ;;
+        "wgDBpassword") field="password" ;;
         *)
             echo "Unexpected variable name passed to the get_mediawiki_db_var() function: $1"
             return
     esac
-    VALUE=$(php /getMediawikiSettings.php --variable=wgDBservers --format=string)
-    if [ -z "$VALUE" ]; then
-        VALUE=$(get_mediawiki_variable "$1")
+    # When wgDBservers is configured (load balancing), the scalar wgDB* globals
+    # may be unset, so pull the field from the first server entry. Otherwise fall
+    # back to the scalar variable.
+    servers=$(php /getMediawikiSettings.php --variable=wgDBservers --format=json)
+    value=$(php -r '$s = json_decode($argv[1], true); echo (is_array($s) && isset($s[0][$argv[2]])) ? $s[0][$argv[2]] : "";' "$servers" "$field")
+    if [ -z "$value" ]; then
+        value=$(get_mediawiki_variable "$1")
     fi
-    echo "$VALUE"
+    echo "$value"
 }
 
 isTrue() {
@@ -51,19 +45,6 @@ isFalse() {
             return 0
             ;;
     esac
-}
-
-get_hostname_with_port() {
-    port=$(echo "$1" | grep ":" | cut -d":" -f2)
-    echo "$1:${port:-$2}"
-}
-
-get_mediawiki_cirrus_search_server() {
-    server=$(get_mediawiki_variable wgCirrusSearchServers first)
-    if [ -z "$server" ]; then
-        server=$(php /getMediawikiSettings.php --variable=wgCirrusSearchClusters --format=string)
-    fi
-    get_hostname_with_port "$server" 9200
 }
 
 make_dir_writable() {

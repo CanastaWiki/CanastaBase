@@ -49,7 +49,11 @@ foreach (['extensions', 'skins'] as $type) {
             $packageName = $data['composer-name'];
             $packageVersion = $data['composer-version'] ?? null;
             $packageString = $packageVersion ? "$packageName:$packageVersion" : $packageName;
-            exec("composer require $packageString --working-dir=$MW_HOME --no-interaction");
+            exec("composer require $packageString --working-dir=$MW_HOME --no-interaction", $requireOutput, $requireReturnCode);
+            if ($requireReturnCode !== 0) {
+                fwrite(STDERR, "ERROR: composer require $packageString failed for $type/$name (exit $requireReturnCode). Aborting the build.\n");
+                exit($requireReturnCode);
+            }
         }
 
         if (!$bundled && !($data['composer-name'] ?? null)) {
@@ -86,7 +90,11 @@ foreach (['extensions', 'skins'] as $type) {
         if ($patches !== null) {
             foreach ($patches as $patch) {
                 $gitApplyCmd = "cd $MW_HOME/canasta-$type/$name && git apply /tmp/$patch";
-                exec($gitApplyCmd);
+                exec($gitApplyCmd, $applyOutput, $applyReturnCode);
+                if ($applyReturnCode !== 0) {
+                    fwrite(STDERR, "ERROR: git apply /tmp/$patch failed for $type/$name (exit $applyReturnCode); the extension would ship unpatched. Aborting the build.\n");
+                    exit($applyReturnCode);
+                }
             }
         }
 
@@ -97,7 +105,11 @@ foreach (['extensions', 'skins'] as $type) {
                     $composerIncludes[] = "$type/$name/composer.json";
                 } elseif ($step === "git submodule update") {
                     $submoduleUpdateCmd = "cd $MW_HOME/canasta-$type/$name && git submodule update --init";
-                    exec($submoduleUpdateCmd);
+                    exec($submoduleUpdateCmd, $submoduleOutput, $submoduleReturnCode);
+                    if ($submoduleReturnCode !== 0) {
+                        fwrite(STDERR, "ERROR: git submodule update failed for $type/$name (exit $submoduleReturnCode). Aborting the build.\n");
+                        exit($submoduleReturnCode);
+                    }
                 }
             }
         }

@@ -77,6 +77,21 @@ class TestApacheRewriteGeneration:
         assert cfg.count("RewriteRule ^/public_assets/(.*)$") == 1
         assert cfg.count("RewriteRule ^/docs/public_assets/(.*)$") == 1
 
+    def test_rerun_does_not_duplicate_directives(self, script_runner):
+        # A container restart reuses the same apache2.conf; running the
+        # script a second time must replace its block, not append a copy.
+        wikis = [
+            {"id": "main", "url": "localhost"},
+            {"id": "docs", "url": "localhost/docs"},
+        ]
+        script_runner(wikis)
+        cfg, result = script_runner(wikis)
+        assert result.returncode == 0, result.stderr
+        assert cfg.count("RewriteRule ^/public_assets/(.*)$") == 1
+        assert cfg.count("RewriteRule ^/docs/public_assets/(.*)$") == 1
+        assert cfg.count("Alias /docs/w/images/ ") == 1
+        assert cfg.count("# BEGIN canasta-subdir-wikis") == 1
+
 
 class TestSubdirWikiPlumbing:
     """The pre-#144 logic for subdir wikis (preserved by the rewrite)."""

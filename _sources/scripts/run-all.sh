@@ -80,8 +80,13 @@ if [ "$NEEDS_COMPOSER" = "true" ]; then
   fi
   if [ "$CURRENT_HASH" != "$SAVED_HASH" ]; then
     echo "Composer dependencies changed, running composer update..."
-    composer update --working-dir="$MW_HOME" --no-dev --no-interaction
-    echo "$CURRENT_HASH" > "$COMPOSER_HASH_FILE"
+    # Only record the new hash if the update succeeded; otherwise the next start
+    # would skip composer and boot with a broken/stale vendor tree.
+    if composer update --working-dir="$MW_HOME" --no-dev --no-interaction; then
+      echo "$CURRENT_HASH" > "$COMPOSER_HASH_FILE"
+    else
+      echo "composer update failed; leaving the dependency hash unchanged so it retries on next start." >&2
+    fi
   else
     echo "Composer dependencies unchanged, skipping update."
   fi

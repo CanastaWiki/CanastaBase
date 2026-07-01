@@ -45,7 +45,7 @@ if ( !$isConfigured ) {
 
 // Canasta default settings below
 
-$wgServer = getenv( 'MW_SITE_SERVER' ) ?? 'http://localhost';
+$wgServer = getenv( 'MW_SITE_SERVER' ) ?: 'http://localhost';
 
 ## The URL base path to the directory containing the wiki;
 ## defaults for all runtime URL paths are based off of this.
@@ -131,8 +131,8 @@ if ( $canastaEnableVarnish !== 'false' && $canastaEnableVarnish !== '0' ) {
 
 /**
  * Returns boolean value from environment variable
- * Must return the same result as isTrue function in run-apache.sh file
- * @param $value
+ * Must return the same result as the isTrue function in functions.sh
+ * @param $name
  * @return bool
  */
 function isEnvTrue( $name ): bool {
