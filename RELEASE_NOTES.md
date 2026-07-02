@@ -26,3 +26,4 @@ CanastaBase version history:
 - 1.3.11 - June 30, 2026 - Fail the image build when the unified Composer update fails to resolve or leaves a bundled extension's dependencies uninstalled, instead of silently shipping an image with an incomplete vendor/; added a build-time dependency self-test that aborts the build if any merged-in extension's required package is missing from vendor/ (#187)
 - 1.3.12 - July 1, 2026 - Fail the image build if there are Git errors during extension and skin setup (#190)
 - 1.3.13 - July 2, 2026 - Idempotent Apache/.htaccess generation (#197); fail the build on Composer and Git errors (#195); maintenance-script fixes (#194); Dockerfile hardening (#198)
+- 1.3.14 - July 2, 2026 - Fix public_assets file serving (logo, favicon) for wikis.yaml with indented entries (#202)
