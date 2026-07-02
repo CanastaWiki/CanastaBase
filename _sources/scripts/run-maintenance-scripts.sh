@@ -7,13 +7,18 @@ set -x
 
 . /functions.sh
 
+# `set -x` echoes every expanded command, which would print the DB password to
+# the container logs. Suppress tracing around any command that reads or uses it.
+hide_secrets() { case "$-" in *x*) _trace_on=1; { set +x; } 2>/dev/null;; *) _trace_on=;; esac; }
+show_secrets() { [ -n "$_trace_on" ] && set -x; return 0; }
+
+hide_secrets
 WG_DB_TYPE=$(get_mediawiki_db_var wgDBtype)
 WG_DB_SERVER=$(get_mediawiki_db_var wgDBserver)
 WG_DB_NAME=$(get_mediawiki_db_var wgDBname)
 WG_DB_USER=$(get_mediawiki_db_var wgDBuser)
 WG_DB_PASSWORD=$(get_mediawiki_db_var wgDBpassword)
-WG_SQLITE_DATA_DIR=$(get_mediawiki_variable wgSQLiteDataDir)
-WG_SEARCH_TYPE=$(get_mediawiki_variable wgSearchType)
+show_secrets
 VERSION_HASH=$(php /getMediawikiSettings.php --versions --format=md5)
 
 waitdatabase() {
@@ -37,10 +42,12 @@ waitdatabase() {
                     echo >&2 "Database type detected after ${i} attempt(s)."
                     # LocalSettings.php now exists; the DB vars snapshotted at
                     # script start were empty, so reload the rest to match.
+                    hide_secrets
                     WG_DB_SERVER=$(get_mediawiki_db_var wgDBserver)
                     WG_DB_NAME=$(get_mediawiki_db_var wgDBname)
                     WG_DB_USER=$(get_mediawiki_db_var wgDBuser)
                     WG_DB_PASSWORD=$(get_mediawiki_db_var wgDBpassword)
+                    show_secrets
                     break
                 fi
                 echo >&2 "Waiting for LocalSettings.php (attempt $i/31)..."
@@ -62,8 +69,9 @@ waitdatabase() {
       fi
       /wait-for-it.sh -t 86400 "$DB_SERVER_WITH_PORT"
   
+      hide_secrets
       mysql=( mysql -h "$WG_DB_SERVER" -u"$WG_DB_USER" -p"$WG_DB_PASSWORD" )
-  
+
       for i in {60..0}; do
           if echo 'SELECT 1' | "${mysql[@]}" &> /dev/null; then
               db_started="1"
@@ -72,6 +80,7 @@ waitdatabase() {
           echo >&2 'Waiting for database to start...'
           sleep 1
       done
+      show_secrets
       if [ "$i" = 0 ]; then
           echo >&2 'Could not connect to the database.'
           return 1
@@ -79,25 +88,6 @@ waitdatabase() {
       echo >&2 'Successfully connected to the database.'
       return 0
     fi
-}
-
-get_tables_count() {
-    waitdatabase || {
-        return $?
-    }
-
-    if [ "3" = "$db_started" ]; then
-        # sqlite
-        find "$WG_SQLITE_DATA_DIR" -type f | wc -l
-        return 0
-    elif [ "1" = "$db_started" ]; then
-        db_user="$WG_DB_USER"
-        db_password="$WG_DB_PASSWORD"
-    else
-        db_user="$MW_DB_INSTALLDB_USER"
-        db_password="$MW_DB_INSTALLDB_PASS"
-    fi
-    mysql -h "$WG_DB_SERVER" -u"$db_user" -p"$db_password" -e "SELECT count(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '$WG_DB_NAME'" | sed -n 2p
 }
 
 run_maintenance_script_if_needed () {
@@ -121,8 +111,9 @@ run_maintenance_script_if_needed () {
             fi
             echo >&2 "Run maintenance script: ${!i}"
             runuser -c "php ${!i}" -s /bin/bash "$WWW_USER" || {
+                rc=$?
                 echo >&2 "An error occurred when the maintenance script ${!i} was running"
-                return $?
+                return $rc
             }
             i=$((i+1))
         done
@@ -148,8 +139,9 @@ run_autoupdate () {
                 echo >&2 "Running maintenance/update.php for wiki: $wiki_id"
                 run_maintenance_script_if_needed "maintenance_update_$wiki_id" "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
                     "maintenance/update.php --quick --wiki=$wiki_id" || {
+                        rc=$?
                         echo >&2 "An error occurred when auto-update script was running for wiki: $wiki_id"
-                        return $?
+                        return $rc
                     }
             fi
         done <<< "$wiki_ids"
@@ -157,8 +149,9 @@ run_autoupdate () {
         # Single wiki (legacy mode)
         run_maintenance_script_if_needed 'maintenance_update' "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
             'maintenance/update.php --quick' || {
+                rc=$?
                 echo >&2 "An error occurred when auto-update script was running"
-                return $?
+                return $rc
             }
     fi
 
@@ -251,13 +244,13 @@ else
     echo "Found configuration file"
     set -x
     # reload variables
+    hide_secrets
     WG_DB_TYPE=$(get_mediawiki_db_var wgDBtype)
     WG_DB_SERVER=$(get_mediawiki_db_var wgDBserver)
     WG_DB_NAME=$(get_mediawiki_db_var wgDBname)
     WG_DB_USER=$(get_mediawiki_db_var wgDBuser)
     WG_DB_PASSWORD=$(get_mediawiki_db_var wgDBpassword)
-    WG_SQLITE_DATA_DIR=$(get_mediawiki_variable wgSQLiteDataDir)
-    WG_SEARCH_TYPE=$(get_mediawiki_variable wgSearchType)
+    show_secrets
     VERSION_HASH=$(php /getMediawikiSettings.php --versions --format=md5)
 
     run_maintenance_scripts
