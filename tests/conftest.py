@@ -60,17 +60,23 @@ def workspace(tmp_path):
     }
 
 
-def write_wikis(wikis_yaml, wikis):
-    """Write a wikis list to wikis.yaml in the canonical canasta format.
+def write_wikis(wikis_yaml, wikis, indent=0):
+    """Write a wikis list to wikis.yaml.
 
     `wikis` is a list of dicts with at least `id` and `url` keys.
+
+    `indent` is the number of spaces before each "- id:" list item.
+    Both the flat block style (indent=0, what the CLI's yaml.dump emits)
+    and the nested style (indent=2, common hand-edited / library output)
+    are valid YAML and occur in production, so tests exercise both.
     """
+    pad = " " * indent
     lines = ["wikis:"]
     for w in wikis:
-        lines.append("- id: %s" % w["id"])
-        lines.append("  url: %s" % w["url"])
+        lines.append("%s- id: %s" % (pad, w["id"]))
+        lines.append("%s  url: %s" % (pad, w["url"]))
         if "name" in w:
-            lines.append("  name: %s" % w["name"])
+            lines.append("%s  name: %s" % (pad, w["name"]))
     wikis_yaml.write_text("\n".join(lines) + "\n")
 
 
@@ -99,8 +105,8 @@ def script_runner(workspace):
     """Convenience: returns a callable that writes a wikis.yaml and runs
     the script in one step. The callable returns
     (apache_conf_text, CompletedProcess) so tests can assert on both."""
-    def _run(wikis):
-        write_wikis(workspace["wikis_yaml"], wikis)
+    def _run(wikis, indent=0):
+        write_wikis(workspace["wikis_yaml"], wikis, indent=indent)
         return run_script(workspace)
     _run.workspace = workspace
     return _run
