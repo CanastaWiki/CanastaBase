@@ -22,6 +22,23 @@ set -e
 WIKIS_YAML="${WIKIS_YAML:-$MW_VOLUME/config/wikis.yaml}"
 APACHE_CONF="${APACHE_CONF:-/etc/apache2/apache2.conf}"
 
+# A container restart reuses the same apache2.conf, so strip any block we
+# appended on a previous run before regenerating it. Without this the rewrite
+# rules and aliases accumulate one duplicate copy per start.
+MARKER_BEGIN="# BEGIN canasta-subdir-wikis (managed by config-subdir-wikis.sh)"
+MARKER_END="# END canasta-subdir-wikis"
+if grep -qF "$MARKER_BEGIN" "$APACHE_CONF" 2>/dev/null; then
+    stripped="$(mktemp)"
+    sed "/^# BEGIN canasta-subdir-wikis/,/^# END canasta-subdir-wikis/d" "$APACHE_CONF" > "$stripped"
+    cat "$stripped" > "$APACHE_CONF"
+    rm -f "$stripped"
+fi
+
+# Accumulate this run's directives in a buffer, then append them once, wrapped
+# in the markers above, so the next run can find and remove them.
+GENERATED_CONF="$(mktemp)"
+trap 'rm -f "$GENERATED_CONF"' EXIT
+
 # Walk wikis.yaml and emit one TAB-separated "id<TAB>url" line per wiki.
 # Assumes the canonical canasta wikis.yaml format where each wiki entry
 # starts with "- id: <id>" followed by "  url: <url>" (and optionally
@@ -66,12 +83,12 @@ while IFS=$'\t' read -r wiki_id wiki_url; do
     # safe for multi-host farms — only the matching host's request paths
     # get routed to that wiki's storage directory.
     if [ -n "$wiki_path" ]; then
-        cat >> "$APACHE_CONF" <<APACHE
+        cat >> "$GENERATED_CONF" <<APACHE
 RewriteCond %{HTTP_HOST} ^${host_re}\$ [NC]
 RewriteRule ^/${wiki_path}/public_assets/(.*)\$ /mediawiki/public_assets/${wiki_id}/\$1 [L]
 APACHE
     else
-        cat >> "$APACHE_CONF" <<APACHE
+        cat >> "$GENERATED_CONF" <<APACHE
 RewriteCond %{HTTP_HOST} ^${host_re}\$ [NC]
 RewriteRule ^/public_assets/(.*)\$ /mediawiki/public_assets/${wiki_id}/\$1 [L]
 APACHE
@@ -110,7 +127,16 @@ APACHE
             -e "s|^\\(.*\\)\$ %{DOCUMENT_ROOT}/w/index.php|\\1\$ %{DOCUMENT_ROOT}/$wiki_path/w/index.php|" \
             "$WWW_ROOT/.htaccess" > "$WWW_ROOT/$wiki_path/.htaccess"
 
-        echo "Alias /$wiki_path/w/images/ /var/www/mediawiki/w/img_auth.php/" >> "$APACHE_CONF"
-        echo "Alias /$wiki_path/w/images /var/www/mediawiki/w/img_auth.php" >> "$APACHE_CONF"
+        echo "Alias /$wiki_path/w/images/ /var/www/mediawiki/w/img_auth.php/" >> "$GENERATED_CONF"
+        echo "Alias /$wiki_path/w/images /var/www/mediawiki/w/img_auth.php" >> "$GENERATED_CONF"
     fi
 done < <(parse_wikis)
+
+# Append this run's directives as a single marked block.
+if [ -s "$GENERATED_CONF" ]; then
+    {
+        printf '%s\n' "$MARKER_BEGIN"
+        cat "$GENERATED_CONF"
+        printf '%s\n' "$MARKER_END"
+    } >> "$APACHE_CONF"
+fi
