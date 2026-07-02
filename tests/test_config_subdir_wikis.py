@@ -7,6 +7,8 @@ These tests run the real script in a temp workspace via subprocess
 and assert on the resulting files.
 """
 
+import pytest
+
 
 class TestApacheRewriteGeneration:
     """The new public_assets rewrite logic added for #144."""
@@ -199,3 +201,39 @@ class TestEdgeCases:
             [{"id": "my_wiki_id", "url": "localhost"}],
         )
         assert "/mediawiki/public_assets/my_wiki_id/" in cfg
+
+
+class TestIndentationTolerance:
+    """wikis.yaml appears in two valid YAML shapes in production: flat
+    block style (list items at column 0, what the CLI's yaml.dump emits)
+    and nested style (list items indented under 'wikis:', common from
+    hand edits or other serializers). The parser must handle both, or an
+    indented file silently yields no rewrite rules and every wiki's
+    /public_assets/ (logos, favicons) 404s. Regression guard for the
+    indented case, which shipped broken.
+    """
+
+    @pytest.mark.parametrize("indent", [0, 2, 4])
+    def test_root_wiki_rewrite_generated_regardless_of_indent(
+        self, script_runner, indent,
+    ):
+        cfg, result = script_runner(
+            [{"id": "main", "url": "canasta.wiki"}], indent=indent,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "RewriteCond %{HTTP_HOST} ^canasta\\.wiki$ [NC]" in cfg
+        assert (
+            "RewriteRule ^/public_assets/(.*)$ "
+            "/mediawiki/public_assets/main/$1 [L]"
+        ) in cfg
+
+    @pytest.mark.parametrize("indent", [0, 2, 4])
+    def test_multi_host_farm_all_wikis_parsed_when_indented(
+        self, script_runner, indent,
+    ):
+        cfg, _ = script_runner([
+            {"id": "canasta", "url": "canasta.wiki", "name": "Canasta Wiki"},
+            {"id": "demo", "url": "demo.canasta.wiki", "name": "demo"},
+        ], indent=indent)
+        assert "/mediawiki/public_assets/canasta/" in cfg
+        assert "/mediawiki/public_assets/demo/" in cfg

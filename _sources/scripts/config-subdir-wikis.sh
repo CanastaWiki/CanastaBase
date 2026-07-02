@@ -40,18 +40,20 @@ GENERATED_CONF="$(mktemp)"
 trap 'rm -f "$GENERATED_CONF"' EXIT
 
 # Walk wikis.yaml and emit one TAB-separated "id<TAB>url" line per wiki.
-# Assumes the canonical canasta wikis.yaml format where each wiki entry
-# starts with "- id: <id>" followed by "  url: <url>" (and optionally
-# more fields). awk tracks the current wiki and flushes when it sees
-# the next entry or end-of-file.
+# Each wiki entry is a "- id: <id>" list item followed by a "url: <url>"
+# key. Leading indentation is tolerated: both the flat block style
+# (list item at column 0) and the nested style (list item indented under
+# "wikis:") are valid YAML and appear in the wild, so the anchors match
+# either. awk tracks the current wiki and flushes when it sees the next
+# entry or end-of-file.
 parse_wikis() {
     awk '
-        /^- id:/ {
+        /^[ \t]*-[ \t]+id:/ {
             if (id != "" && url != "") { print id "\t" url }
             id = $3
             url = ""
         }
-        /^  url:/ { url = $2 }
+        /^[ \t]*url:/ { url = $2 }
         END { if (id != "" && url != "") print id "\t" url }
     ' "$WIKIS_YAML"
 }
