@@ -23,7 +23,7 @@ LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
 # System setup
 # Pinning system package versions is impractical on Debian
 # hadolint ignore=DL3008
-RUN set x; \
+RUN set -x; \
 	apt-get clean \
 	&& apt-get update \
 	&& apt-get install -y --no-install-recommends aptitude \
@@ -94,11 +94,17 @@ RUN set -x; \
     && mkdir -p "$MW_ORIGIN_FILES" \
     && mkdir -p "$MW_VOLUME"
 
-# Composer
+# Composer — verify the installer against the published SHA-384 before running
+# it, then track the latest 2.x line instead of a long-outdated pin.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN set -x; \
-	curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
-    && composer self-update 2.1.3
+	curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php \
+	&& EXPECTED_CHECKSUM="$(curl -sS https://composer.github.io/installer.sig)" \
+	&& ACTUAL_CHECKSUM="$(sha384sum /tmp/composer-setup.php | cut -d' ' -f1)" \
+	&& [ "$EXPECTED_CHECKSUM" = "$ACTUAL_CHECKSUM" ] \
+	&& php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer \
+	&& rm /tmp/composer-setup.php \
+	&& composer self-update --2
 
 FROM base AS source
 
@@ -178,8 +184,7 @@ COPY --from=source $MW_ORIGIN_FILES $MW_ORIGIN_FILES
 # Default values
 ENV MW_AUTOUPDATE=true \
 	MW_MAINTENANCE_UPDATE=0 \
-	MW_MAINTENANCE_CIRRUSSEARCH_UPDATECONFIG=2 \
-	MW_MAINTENANCE_CIRRUSSEARCH_FORCEINDEX=2 \
+	APACHE_REMOTE_IP_HEADER=X-Forwarded-For \
 	MW_ENABLE_JOB_RUNNER=true \
 	MW_JOB_RUNNER_PAUSE=2 \
 	MW_JOB_RUNNER_MEMORY_LIMIT=512M \
@@ -206,7 +211,7 @@ COPY _sources/configs/mediawiki.conf /etc/apache2/sites-enabled/
 COPY _sources/configs/status.conf /etc/apache2/mods-available/
 COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/cli/conf.d/
 COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php_max_input_vars.ini _sources/configs/php_max_input_vars.ini /etc/php/8.2/fpm/conf.d/
+COPY _sources/configs/php_max_input_vars.ini /etc/php/8.2/fpm/conf.d/
 COPY _sources/configs/php_timeouts.ini /etc/php/8.2/fpm/conf.d/
 COPY _sources/configs/php-fpm-www.conf /etc/php/8.2/fpm/pool.d/www.conf
 COPY _sources/scripts/*.sh /
