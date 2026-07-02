@@ -19,5 +19,9 @@ for db_name in "${ids[@]}"; do
     chown $(stat -c '%u' $MW_VOLUME/public_assets):$WWW_GROUP $MW_VOLUME/public_assets/$db_name
 done
 
-# Protect Images Directory from Internet Access
-echo "Deny from All" >> $MW_VOLUME/images/.htaccess 
+# Protect Images Directory from Internet Access (only add the rule once; this
+# script runs on every container start)
+htaccess="$MW_VOLUME/images/.htaccess"
+if ! grep -qxF "Deny from All" "$htaccess" 2>/dev/null; then
+    echo "Deny from All" >> "$htaccess"
+fi
