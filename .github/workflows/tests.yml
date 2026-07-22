@@ -8,6 +8,42 @@ on:
     branches: [master]
 
 jobs:
+  sast:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run Semgrep
+        run: |
+          python -m venv .semgrep
+          .semgrep/bin/pip install semgrep==1.170.1
+          .semgrep/bin/semgrep scan --config p/php --include '*.php' --sarif --output semgrep.sarif _sources
+
+      - name: Upload Semgrep results to GitHub Security
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-php
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        env:
+          SHELLCHECK_OPTS: --shell=bash
+        with:
+          check_together: true
+          scandir: _sources
+          severity: error
+          version: 0.10.0
+
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest

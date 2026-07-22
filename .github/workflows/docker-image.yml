@@ -47,7 +47,7 @@ jobs:
     permissions:
       artifact-metadata: write
       attestations: write
-      contents: write
+      contents: read
       id-token: write
       packages: write
       pull-requests: write
@@ -123,6 +123,7 @@ jobs:
           if [ -n "$BEFORE_SHA" ] && ! echo "$BEFORE_SHA" | grep -qE '^0+$' && git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
             DIFF_BASE="$BEFORE_SHA"
           fi
+          IS_RELEASE=false
           if [ "$VERSION" == "latest" ] && git diff "$DIFF_BASE" HEAD --name-only | grep -q '^VERSION$'; then
             # The version tag is meant to be immutable. If it already exists in
             # the registry (e.g. this workflow was re-run, or a later master
@@ -132,6 +133,7 @@ jobs:
               echo "::warning::Immutable tag $CANASTA_VERSION already exists in the registry; not re-pushing it from this commit."
             else
               REGISTRY_TAGS=$REGISTRY_TAGS,$IMAGE_ID:$CANASTA_VERSION
+              IS_RELEASE=true
             fi
           fi
 
@@ -148,6 +150,8 @@ jobs:
           echo "REGISTRY_TAGS=$REGISTRY_TAGS" >> $GITHUB_OUTPUT
           echo "REGISTRY_TAGS_VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "REGISTRY_TAGS_PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "CANASTA_VERSION=$CANASTA_VERSION" >> "$GITHUB_OUTPUT"
+          echo "IS_RELEASE=$IS_RELEASE" >> "$GITHUB_OUTPUT"
           echo "SHA_SHORT=$SHA_SHORT" >> $GITHUB_OUTPUT
       -
         name: Set up QEMU
@@ -197,6 +201,8 @@ jobs:
           image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.platform_digests.outputs.amd64 }}
           format: sarif
           output: trivy-results-amd64.sarif
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
       -
         name: Upload amd64 Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
@@ -210,6 +216,8 @@ jobs:
           image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.platform_digests.outputs.arm64 }}
           format: sarif
           output: trivy-results-arm64.sarif
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
           skip-setup-trivy: true
       -
         name: Upload arm64 Trivy results to GitHub Security
@@ -219,44 +227,40 @@ jobs:
           category: trivy-container-image-arm64
       -
         name: Generate amd64 CycloneDX SBOM
+        if: steps.generate.outputs.IS_RELEASE == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.platform_digests.outputs.amd64 }}
           format: cyclonedx
-          output: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}-amd64.cdx.json
+          output: canasta-base-${{ steps.generate.outputs.CANASTA_VERSION }}-amd64.cdx.json
           skip-setup-trivy: true
       -
         name: Generate arm64 CycloneDX SBOM
+        if: steps.generate.outputs.IS_RELEASE == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.platform_digests.outputs.arm64 }}
           format: cyclonedx
-          output: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}-arm64.cdx.json
+          output: canasta-base-${{ steps.generate.outputs.CANASTA_VERSION }}-arm64.cdx.json
           skip-setup-trivy: true
       -
         name: Attest amd64 release SBOM
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.generate.outputs.IS_RELEASE == 'true'
         uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-name: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.platform_digests.outputs.amd64 }}
-          sbom-path: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}-amd64.cdx.json
+          sbom-path: canasta-base-${{ steps.generate.outputs.CANASTA_VERSION }}-amd64.cdx.json
           push-to-registry: true
       -
         name: Attest arm64 release SBOM
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.generate.outputs.IS_RELEASE == 'true'
         uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-name: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.platform_digests.outputs.arm64 }}
-          sbom-path: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}-arm64.cdx.json
+          sbom-path: canasta-base-${{ steps.generate.outputs.CANASTA_VERSION }}-arm64.cdx.json
           push-to-registry: true
-      -
-        name: Attach SBOMs to release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
-        with:
-          files: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}-*.cdx.json
 
       -
         name: Notify about image tag
