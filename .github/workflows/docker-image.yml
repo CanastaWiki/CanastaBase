@@ -202,6 +202,7 @@ jobs:
           format: sarif
           output: trivy-results-amd64.sarif
           ignore-unfixed: true
+          limit-severities-for-sarif: true
           severity: CRITICAL,HIGH
       -
         name: Upload amd64 Trivy results to GitHub Security
@@ -217,6 +218,7 @@ jobs:
           format: sarif
           output: trivy-results-arm64.sarif
           ignore-unfixed: true
+          limit-severities-for-sarif: true
           severity: CRITICAL,HIGH
           skip-setup-trivy: true
       -
