@@ -44,6 +44,14 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'pull_request'
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: write
+      id-token: write
+      packages: write
+      pull-requests: write
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -171,6 +179,42 @@ jobs:
       -
         name: Image tags debug
         run: echo ${{ steps.generate.outputs.REGISTRY_TAGS }}
+      -
+        name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+      -
+        name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container-image
+      -
+        name: Generate CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}
+          format: cyclonedx
+          output: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}.cdx.json
+          skip-setup-trivy: true
+      -
+        name: Attest release SBOM
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.docker_build.outputs.digest }}
+          sbom-path: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}.cdx.json
+          push-to-registry: true
+      -
+        name: Attach SBOM to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          files: canasta-base-${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}.cdx.json
 
       -
         name: Notify about image tag
