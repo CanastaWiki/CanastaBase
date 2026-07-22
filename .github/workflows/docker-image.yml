@@ -16,6 +16,13 @@ on:
   # Plus for any pull-requests
   pull_request:
 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing Canasta version to attest
+        required: true
+        type: string
+
 env:
   IMAGE_NAME: canasta-base
 
@@ -271,3 +278,67 @@ jobs:
         with:
           header: canasta-image-tag
           message: ":whale: The image based on [${{ steps.generate.outputs.SHA_SHORT }}](https://github.com/CanastaWiki/CanastaBase/pull/${{ steps.generate.outputs.REGISTRY_TAGS_PR_NUMBER }}/commits/${{ github.event.pull_request.head.sha }}) commit has been built with `${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }}` tag as [${{ steps.generate.outputs.REGISTRY_TAGS }}](https://github.com/${{ github.repository }}/pkgs/container/${{ env.IMAGE_NAME }}/${{ steps.docker_build.outputs.imageid }}?tag=${{ steps.generate.outputs.REGISTRY_TAGS_VERSION }})"
+
+  recover-attestation:
+    name: Recover release SBOM attestations
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Validate version
+        id: recovery
+        env:
+          RECOVERY_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$RECOVERY_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must use the X.Y.Z format."
+            exit 1
+          fi
+          echo "version=$RECOVERY_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve published platform image digests
+        id: platform_digests
+        env:
+          IMAGE_REF: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}:${{ steps.recovery.outputs.version }}
+        run: |
+          MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE_REF")
+          AMD64_DIGEST=$(jq -er '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest' <<< "$MANIFEST")
+          ARM64_DIGEST=$(jq -er '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest' <<< "$MANIFEST")
+          echo "amd64=$AMD64_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "arm64=$ARM64_DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Generate amd64 CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.platform_digests.outputs.amd64 }}
+          format: cyclonedx
+          output: canasta-base-${{ steps.recovery.outputs.version }}-amd64.cdx.json
+      - name: Generate arm64 CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}@${{ steps.platform_digests.outputs.arm64 }}
+          format: cyclonedx
+          output: canasta-base-${{ steps.recovery.outputs.version }}-arm64.cdx.json
+          skip-setup-trivy: true
+      - name: Attest amd64 release SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.platform_digests.outputs.amd64 }}
+          sbom-path: canasta-base-${{ steps.recovery.outputs.version }}-amd64.cdx.json
+          push-to-registry: true
+      - name: Attest arm64 release SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ghcr.io/canastawiki/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.platform_digests.outputs.arm64 }}
+          sbom-path: canasta-base-${{ steps.recovery.outputs.version }}-arm64.cdx.json
+          push-to-registry: true

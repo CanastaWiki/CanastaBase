@@ -150,7 +150,7 @@ if [[ $WAITFORIT_TIMEOUT_PATH =~ "busybox" ]]; then
     WAITFORIT_ISBUSY=1
     # Check if busybox timeout uses -t flag
     # (recent Alpine versions don't support -t anymore)
-    if timeout 2>&1 | grep -q -e '-t '; then
+    if timeout &>/dev/stdout | grep -q -e '-t '; then
         WAITFORIT_BUSYTIMEFLAG="-t"
     fi
 else
