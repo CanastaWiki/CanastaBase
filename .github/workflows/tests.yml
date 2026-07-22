@@ -42,7 +42,7 @@ jobs:
           check_together: true
           scandir: _sources
           severity: error
-          version: 0.10.0
+          version: v0.10.0
 
   unit:
     name: Unit Tests
