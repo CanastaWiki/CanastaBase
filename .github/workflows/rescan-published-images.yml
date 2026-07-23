@@ -77,7 +77,8 @@ jobs:
             INSPECT_ERROR="$RESULT_DIR/inspect-error"
             if ! MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE:$TAG" 2> "$INSPECT_ERROR"); then
               cat "$INSPECT_ERROR" >&2
-              if grep -Eqi 'manifest unknown|not found' "$INSPECT_ERROR"; then
+              if grep -Fqi 'manifest unknown' "$INSPECT_ERROR" ||
+                 grep -Fqi "$IMAGE:${TAG}: not found" "$INSPECT_ERROR"; then
                 echo "::warning::Skipping missing image tag $IMAGE:$TAG"
                 continue
               fi
