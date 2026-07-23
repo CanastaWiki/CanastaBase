@@ -1,13 +1,15 @@
-FROM debian:12.8 AS base
+FROM debian:13 AS base
 
 LABEL maintainers=""
 LABEL org.opencontainers.image.source=https://github.com/CanastaWiki/CanastaBase
 
 ARG MW_VERSION=REL1_43
 ARG MW_CORE_VERSION=1.43.9
+ARG PHP_SERIES=8.4
 
 ENV MW_VERSION=${MW_VERSION} \
 	MW_CORE_VERSION=${MW_CORE_VERSION} \
+	PHP_SERIES=${PHP_SERIES} \
 	WWW_ROOT=/var/www/mediawiki \
 	MW_HOME=/var/www/mediawiki/w \
 	MW_LOG=/var/log/mediawiki \
@@ -32,9 +34,7 @@ RUN set -x; \
 	git \
 	inotify-tools \
 	apache2 \
-	software-properties-common \
 	gpg \
-	apt-transport-https \
 	ca-certificates \
 	wget \
 	lsb-release \
@@ -66,7 +66,7 @@ RUN set -x; \
 	php-redis \
 	php-curl \
 	php-zip \
-	php8.2-fpm \
+	php${PHP_SERIES}-fpm \
 	php-yaml \
 	php-ldap \
 	php-bcmath \
@@ -85,7 +85,7 @@ RUN set -x; \
     && a2enmod rewrite \
 	# enabling mpm_event and php-fpm
 	&& a2dismod mpm_prefork \
-	&& a2enconf php8.2-fpm \
+	&& a2enconf php${PHP_SERIES}-fpm \
 	&& a2enmod mpm_event \
 	&& a2enmod proxy_fcgi \
     # Create directories
@@ -209,11 +209,11 @@ ENV MW_AUTOUPDATE=true \
 
 COPY _sources/configs/mediawiki.conf /etc/apache2/sites-enabled/
 COPY _sources/configs/status.conf /etc/apache2/mods-available/
-COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/cli/conf.d/
-COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php_max_input_vars.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php_timeouts.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php-fpm-www.conf /etc/php/8.2/fpm/pool.d/www.conf
+COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/${PHP_SERIES}/cli/conf.d/
+COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/${PHP_SERIES}/fpm/conf.d/
+COPY _sources/configs/php_max_input_vars.ini /etc/php/${PHP_SERIES}/fpm/conf.d/
+COPY _sources/configs/php_timeouts.ini /etc/php/${PHP_SERIES}/fpm/conf.d/
+COPY _sources/configs/php-fpm-www.conf /etc/php/${PHP_SERIES}/fpm/pool.d/www.conf
 COPY _sources/scripts/*.sh /
 COPY _sources/scripts/maintenance-scripts/*.sh /maintenance-scripts/
 COPY _sources/scripts/*.php $MW_HOME/maintenance/
@@ -248,7 +248,7 @@ RUN set -x; \
 	&& a2enmod expires remoteip\
 	&& a2disconf other-vhosts-access-log \
 	# Enable environment variables for FPM workers
-	&& sed -i '/clear_env/s/^;//' /etc/php/8.2/fpm/pool.d/www.conf
+	&& sed -i '/clear_env/s/^;//' /etc/php/${PHP_SERIES}/fpm/pool.d/www.conf
 
 COPY _sources/images/Powered-by-Canasta.png /var/www/mediawiki/w/resources/assets/
 
