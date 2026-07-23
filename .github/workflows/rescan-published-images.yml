@@ -71,6 +71,7 @@ jobs:
           FINDINGS="$RESULT_DIR/findings"
           : > "$SUMMARY"
           : > "$FINDINGS"
+          SCANNED=0
           TOTAL=0
 
           for TAG in latest "$MEDIAWIKI_TAG" "$VERSION_TAG"; do
@@ -121,9 +122,15 @@ jobs:
                 | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
                 | length
               ' "$RESULT")
+              SCANNED=$((SCANNED + 1))
               printf '| `%s` | `%s` | %s |\n' "$TAG" "$ARCH" "$COUNT" >> "$SUMMARY"
             done
           done
+
+          if (( SCANNED == 0 )); then
+            echo "::error::No published platform images were available to scan."
+            exit 1
+          fi
 
           REPORT="$RESULT_DIR/report.md"
           {
