@@ -35,7 +35,7 @@ jobs:
           category: semgrep-php
 
       - name: Run Semgrep for shell
-        run: .semgrep/bin/semgrep scan --config p/bash --include '*.sh' --exclude '**/wait-for-it.sh' --sarif --output semgrep-shell.sarif _sources
+        run: .semgrep/bin/semgrep scan --config p/security-audit --include '*.sh' --exclude '**/wait-for-it.sh' --sarif --output semgrep-shell.sarif _sources
 
       - name: Upload shell Semgrep results to GitHub Security
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
