@@ -16,6 +16,7 @@ permissions:
 
 env:
   IMAGE: ghcr.io/canastawiki/canasta-base
+  ISSUE_LABEL: automated
   ISSUE_TITLE: Scheduled CanastaBase image vulnerability scan
 
 jobs:
@@ -73,7 +74,10 @@ jobs:
           TOTAL=0
 
           for TAG in latest "$MEDIAWIKI_TAG" "$VERSION_TAG"; do
-            MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE:$TAG")
+            if ! MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE:$TAG"); then
+              echo "::warning::Skipping missing image tag $IMAGE:$TAG"
+              continue
+            fi
             for ARCH in amd64 arm64; do
               DIGEST=$(jq -er --arg arch "$ARCH" \
                 '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest' \
@@ -89,7 +93,11 @@ jobs:
                   --severity CRITICAL,HIGH \
                   "$IMAGE@$DIGEST"
 
-                COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$RESULT")
+                COUNT=$(jq '
+                  [.Results[]?.Vulnerabilities[]?]
+                  | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
+                  | length
+                ' "$RESULT")
                 TOTAL=$((TOTAL + COUNT))
                 jq -r --arg digest "$DIGEST" --arg arch "$ARCH" '
                   [.Results[]?.Vulnerabilities[]?]
@@ -101,7 +109,11 @@ jobs:
                 ' "$RESULT" >> "$FINDINGS"
               fi
 
-              COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$RESULT")
+              COUNT=$(jq '
+                [.Results[]?.Vulnerabilities[]?]
+                | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
+                | length
+              ' "$RESULT")
               printf '| `%s` | `%s` | %s |\n' "$TAG" "$ARCH" "$COUNT" >> "$SUMMARY"
             done
           done
@@ -142,20 +154,27 @@ jobs:
           FINDINGS: ${{ steps.scan.outputs.findings }}
           REPORT: ${{ steps.scan.outputs.report }}
         run: |
+          gh label create "$ISSUE_LABEL" \
+            --color ededed \
+            --description "Created and maintained by automation" \
+            --force
+
           ISSUE_NUMBER=$(gh issue list \
             --state all \
             --limit 1000 \
-            --json number,state,title \
-            --jq '[.[] | select(.title == "Scheduled CanastaBase image vulnerability scan")][0].number // empty')
+            --json number,state,title |
+            jq -r --arg title "$ISSUE_TITLE" \
+              '[.[] | select(.title == $title)][0].number // empty')
 
           if (( FINDINGS > 0 )); then
             if [ -n "$ISSUE_NUMBER" ]; then
               gh issue reopen "$ISSUE_NUMBER" 2>/dev/null || true
-              gh issue edit "$ISSUE_NUMBER" --body-file "$REPORT"
+              gh issue edit "$ISSUE_NUMBER" --add-label "$ISSUE_LABEL" --body-file "$REPORT"
             else
-              gh issue create --title "$ISSUE_TITLE" --body-file "$REPORT"
+              gh issue create --label "$ISSUE_LABEL" --title "$ISSUE_TITLE" --body-file "$REPORT"
             fi
           elif [ -n "$ISSUE_NUMBER" ]; then
+            gh issue edit "$ISSUE_NUMBER" --add-label "$ISSUE_LABEL"
             STATE=$(gh issue view "$ISSUE_NUMBER" --json state --jq '.state')
             if [ "$STATE" = "OPEN" ]; then
               gh issue close "$ISSUE_NUMBER" \
