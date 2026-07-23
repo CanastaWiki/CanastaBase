@@ -72,7 +72,6 @@ jobs:
           : > "$SUMMARY"
           : > "$FINDINGS"
           SCANNED=0
-          TOTAL=0
 
           for TAG in latest "$MEDIAWIKI_TAG" "$VERSION_TAG"; do
             INSPECT_ERROR="$RESULT_DIR/inspect-error"
@@ -101,12 +100,6 @@ jobs:
                   --severity CRITICAL,HIGH \
                   "$IMAGE@$DIGEST"
 
-                COUNT=$(jq '
-                  [.Results[]?.Vulnerabilities[]?]
-                  | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
-                  | length
-                ' "$RESULT")
-                TOTAL=$((TOTAL + COUNT))
                 jq -r --arg digest "$DIGEST" --arg arch "$ARCH" '
                   [.Results[]?.Vulnerabilities[]?]
                   | sort_by(.VulnerabilityID, .PkgName, .InstalledVersion)
@@ -117,11 +110,7 @@ jobs:
                 ' "$RESULT" >> "$FINDINGS"
               fi
 
-              COUNT=$(jq '
-                [.Results[]?.Vulnerabilities[]?]
-                | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
-                | length
-              ' "$RESULT")
+              COUNT=$(jq '[.Results[]?.Vulnerabilities[]?.VulnerabilityID] | unique | length' "$RESULT")
               SCANNED=$((SCANNED + 1))
               printf '| `%s` | `%s` | %s |\n' "$TAG" "$ARCH" "$COUNT" >> "$SUMMARY"
             done
@@ -132,13 +121,15 @@ jobs:
             exit 1
           fi
 
+          TOTAL=$(cut -f4 "$FINDINGS" | sort -u | sed '/^$/d' | wc -l | tr -d ' ')
+
           REPORT="$RESULT_DIR/report.md"
           {
-            echo "Trivy found **$TOTAL** fixable HIGH/CRITICAL vulnerabilities across the unique published platform images."
+            echo "Trivy found **$TOTAL** distinct fixable HIGH/CRITICAL CVEs across the published images."
             echo
             echo "[View workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
             echo
-            echo '| Tag | Platform | Findings |'
+            echo '| Tag | Platform | CVEs |'
             echo '| --- | --- | ---: |'
             cat "$SUMMARY"
 
