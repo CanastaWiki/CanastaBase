@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.source=https://github.com/CanastaWiki/CanastaBase
 
 ARG MW_VERSION=REL1_43
 ARG MW_CORE_VERSION=1.43.9
-ARG PHP_SERIES=8.4
+ARG PHP_SERIES=8.2
 
 ENV MW_VERSION=${MW_VERSION} \
 	MW_CORE_VERSION=${MW_CORE_VERSION} \
@@ -28,7 +28,12 @@ LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
 RUN set -x; \
 	apt-get clean \
 	&& apt-get update \
-	&& apt-get install -y --no-install-recommends aptitude \
+	&& apt-get install -y --no-install-recommends aptitude ca-certificates curl \
+	&& curl -fsSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb \
+	&& dpkg -i /tmp/debsuryorg-archive-keyring.deb \
+	&& rm /tmp/debsuryorg-archive-keyring.deb \
+	&& echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ trixie main" > /etc/apt/sources.list.d/php.list \
+	&& apt-get update \
 	&& aptitude -y upgrade \
 	&& aptitude install -y --without-recommends \
 	git \
@@ -54,23 +59,23 @@ RUN set -x; \
 	default-mysql-client \
 	rsync \
 	lynx \
-	php \
-	php-mysql \
-	php-cli \
-	php-gd \
-	php-mbstring \
-	php-xml \
-	php-intl \
-	php-opcache \
-	php-apcu \
-	php-redis \
-	php-curl \
-	php-zip \
+	php${PHP_SERIES} \
+	php${PHP_SERIES}-mysql \
+	php${PHP_SERIES}-cli \
+	php${PHP_SERIES}-gd \
+	php${PHP_SERIES}-mbstring \
+	php${PHP_SERIES}-xml \
+	php${PHP_SERIES}-intl \
+	php${PHP_SERIES}-opcache \
+	php${PHP_SERIES}-apcu \
+	php${PHP_SERIES}-redis \
+	php${PHP_SERIES}-curl \
+	php${PHP_SERIES}-zip \
 	php${PHP_SERIES}-fpm \
-	php-yaml \
-	php-ldap \
-	php-bcmath \
-	php-luasandbox \
+	php${PHP_SERIES}-yaml \
+	php${PHP_SERIES}-ldap \
+	php${PHP_SERIES}-bcmath \
+	php${PHP_SERIES}-luasandbox \
 	libapache2-mod-fcgid \
 	&& aptitude clean \
 	&& rm -rf /var/lib/apt/lists/*

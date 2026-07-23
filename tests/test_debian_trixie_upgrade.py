@@ -20,8 +20,12 @@ def test_php_fpm_version_is_configured_via_php_series():
     run_php_fpm = _read("_sources/scripts/run-php-fpm.sh")
     php_fpm_pool = _read("_sources/configs/php-fpm-www.conf")
 
-    assert "ARG PHP_SERIES=8.4" in dockerfile
+    assert "ARG PHP_SERIES=8.2" in dockerfile
+    assert "https://packages.sury.org/debsuryorg-archive-keyring.deb" in dockerfile
+    assert "https://packages.sury.org/php/ trixie main" in dockerfile
+    assert "php${PHP_SERIES}-mysql" in dockerfile
+    assert "php${PHP_SERIES}-luasandbox" in dockerfile
     assert "php${PHP_SERIES}-fpm" in dockerfile
     assert "/etc/php/${PHP_SERIES}/fpm" in dockerfile
-    assert 'php-fpm"${PHP_SERIES:-8.4}"' in run_php_fpm
+    assert 'php-fpm"${PHP_SERIES:-8.2}"' in run_php_fpm
     assert "/run/php/php${PHP_SERIES}-fpm.sock" in php_fpm_pool
