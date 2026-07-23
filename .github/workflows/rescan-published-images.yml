@@ -74,9 +74,15 @@ jobs:
           TOTAL=0
 
           for TAG in latest "$MEDIAWIKI_TAG" "$VERSION_TAG"; do
-            if ! MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE:$TAG"); then
-              echo "::warning::Skipping missing image tag $IMAGE:$TAG"
-              continue
+            INSPECT_ERROR="$RESULT_DIR/inspect-error"
+            if ! MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE:$TAG" 2> "$INSPECT_ERROR"); then
+              cat "$INSPECT_ERROR" >&2
+              if grep -Eqi 'manifest unknown|not found' "$INSPECT_ERROR"; then
+                echo "::warning::Skipping missing image tag $IMAGE:$TAG"
+                continue
+              fi
+              echo "::error::Could not inspect image tag $IMAGE:$TAG"
+              exit 1
             fi
             for ARCH in amd64 arm64; do
               DIGEST=$(jq -er --arg arch "$ARCH" \
