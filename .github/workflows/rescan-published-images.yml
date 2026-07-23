@@ -2,7 +2,7 @@ name: Rescan published images
 
 on:
   schedule:
-    - cron: '17 5 * * 1'
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 concurrency:
