@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
 
       - name: Determine current tags
         id: tags
@@ -76,33 +78,37 @@ jobs:
               DIGEST=$(jq -er --arg arch "$ARCH" \
                 '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest' \
                 <<< "$MANIFEST")
-              RESULT="$RESULT_DIR/${TAG}-${ARCH}.json"
+              RESULT="$RESULT_DIR/${DIGEST#sha256:}.json"
 
-              trivy image \
-                --image-src remote \
-                --format json \
-                --output "$RESULT" \
-                --ignore-unfixed \
-                --severity CRITICAL,HIGH \
-                "$IMAGE@$DIGEST"
+              if [ ! -f "$RESULT" ]; then
+                trivy image \
+                  --image-src remote \
+                  --format json \
+                  --output "$RESULT" \
+                  --ignore-unfixed \
+                  --severity CRITICAL,HIGH \
+                  "$IMAGE@$DIGEST"
+
+                COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$RESULT")
+                TOTAL=$((TOTAL + COUNT))
+                jq -r --arg digest "$DIGEST" --arg arch "$ARCH" '
+                  [.Results[]?.Vulnerabilities[]?]
+                  | sort_by(.VulnerabilityID, .PkgName, .InstalledVersion)
+                  | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
+                  | .[]
+                  | [$digest, $arch, .Severity, .VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "")]
+                  | @tsv
+                ' "$RESULT" >> "$FINDINGS"
+              fi
 
               COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "$RESULT")
-              TOTAL=$((TOTAL + COUNT))
               printf '| `%s` | `%s` | %s |\n' "$TAG" "$ARCH" "$COUNT" >> "$SUMMARY"
-              jq -r --arg tag "$TAG" --arg arch "$ARCH" '
-                [.Results[]?.Vulnerabilities[]?]
-                | sort_by(.VulnerabilityID, .PkgName, .InstalledVersion)
-                | unique_by(.VulnerabilityID, .PkgName, .InstalledVersion)
-                | .[]
-                | [$tag, $arch, .Severity, .VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "")]
-                | @tsv
-              ' "$RESULT" >> "$FINDINGS"
             done
           done
 
           REPORT="$RESULT_DIR/report.md"
           {
-            echo "Trivy found **$TOTAL** fixable HIGH/CRITICAL vulnerabilities in the current published images."
+            echo "Trivy found **$TOTAL** fixable HIGH/CRITICAL vulnerabilities across the unique published platform images."
             echo
             echo "[View workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
             echo
@@ -114,12 +120,12 @@ jobs:
               echo
               echo '<details><summary>Unique findings (first 200)</summary>'
               echo
-              echo '| Tag | Platform | Severity | Vulnerability | Package | Installed | Fixed |'
+              echo '| Digest | Platform | Severity | Vulnerability | Package | Installed | Fixed |'
               echo '| --- | --- | --- | --- | --- | --- | --- |'
               sort -u "$FINDINGS" | awk 'NR <= 200' |
-                while IFS=$'\t' read -r TAG ARCH SEVERITY VULNERABILITY PACKAGE INSTALLED FIXED; do
+                while IFS=$'\t' read -r DIGEST ARCH SEVERITY VULNERABILITY PACKAGE INSTALLED FIXED; do
                   printf '| `%s` | `%s` | %s | `%s` | `%s` | `%s` | `%s` |\n' \
-                    "$TAG" "$ARCH" "$SEVERITY" "$VULNERABILITY" "$PACKAGE" "$INSTALLED" "$FIXED"
+                    "$DIGEST" "$ARCH" "$SEVERITY" "$VULNERABILITY" "$PACKAGE" "$INSTALLED" "$FIXED"
                 done
               echo
               echo '</details>'
