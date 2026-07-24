@@ -24,8 +24,19 @@ def test_php_fpm_version_is_configured_via_php_series():
     assert "https://packages.sury.org/debsuryorg-archive-keyring.deb" in dockerfile
     assert "https://packages.sury.org/php/ trixie main" in dockerfile
     assert "php${PHP_SERIES}-mysql" in dockerfile
-    assert "php${PHP_SERIES}-luasandbox" in dockerfile
     assert "php${PHP_SERIES}-fpm" in dockerfile
     assert "/etc/php/${PHP_SERIES}/fpm" in dockerfile
     assert 'php-fpm"${PHP_SERIES:-8.2}"' in run_php_fpm
     assert "/run/php/php${PHP_SERIES}-fpm.sock" in php_fpm_pool
+
+
+def test_luasandbox_is_built_for_configured_php_series():
+    dockerfile = _read("Dockerfile")
+
+    assert "php${PHP_SERIES}-luasandbox" not in dockerfile
+    assert "ARG LUASANDBOX_VERSION=4.1.3" in dockerfile
+    assert "mediawiki-php-luasandbox/archive/refs/tags/${LUASANDBOX_VERSION}.tar.gz" in dockerfile
+    assert '${LUASANDBOX_SHA256}  /tmp/luasandbox.tar.gz' in dockerfile
+    assert "phpize${PHP_SERIES}" in dockerfile
+    assert "--with-php-config=/usr/bin/php-config${PHP_SERIES}" in dockerfile
+    assert "phpenmod -v \"${PHP_SERIES}\" luasandbox" in dockerfile

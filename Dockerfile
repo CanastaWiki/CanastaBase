@@ -6,6 +6,8 @@ LABEL org.opencontainers.image.source=https://github.com/CanastaWiki/CanastaBase
 ARG MW_VERSION=REL1_43
 ARG MW_CORE_VERSION=1.43.9
 ARG PHP_SERIES=8.2
+ARG LUASANDBOX_VERSION=4.1.3
+ARG LUASANDBOX_SHA256=b373705508fa3fe5a6f09c05c223b7c281dd29069b34b4f0e57ca30301ab01d8
 
 ENV MW_VERSION=${MW_VERSION} \
 	MW_CORE_VERSION=${MW_CORE_VERSION} \
@@ -75,8 +77,26 @@ RUN set -x; \
 	php${PHP_SERIES}-yaml \
 	php${PHP_SERIES}-ldap \
 	php${PHP_SERIES}-bcmath \
-	php${PHP_SERIES}-luasandbox \
+	liblua5.1-0 \
 	libapache2-mod-fcgid \
+	build-essential \
+	liblua5.1-0-dev \
+	php${PHP_SERIES}-dev \
+	&& curl -fsSLo /tmp/luasandbox.tar.gz "https://github.com/wikimedia/mediawiki-php-luasandbox/archive/refs/tags/${LUASANDBOX_VERSION}.tar.gz" \
+	&& echo "${LUASANDBOX_SHA256}  /tmp/luasandbox.tar.gz" | sha256sum -c - \
+	&& mkdir /tmp/luasandbox \
+	&& tar -xzf /tmp/luasandbox.tar.gz --strip-components=1 -C /tmp/luasandbox \
+	&& cd /tmp/luasandbox \
+	&& phpize${PHP_SERIES} \
+	&& ./configure --with-php-config=/usr/bin/php-config${PHP_SERIES} \
+	&& make -j"$(nproc)" \
+	&& make install \
+	&& echo "extension=luasandbox.so" > /etc/php/${PHP_SERIES}/mods-available/luasandbox.ini \
+	&& phpenmod -v "${PHP_SERIES}" luasandbox \
+	&& cd / \
+	&& rm -rf /tmp/luasandbox /tmp/luasandbox.tar.gz \
+	&& apt-get purge -y --auto-remove build-essential liblua5.1-0-dev php${PHP_SERIES}-dev \
+	&& php${PHP_SERIES} -m | grep -Fx luasandbox \
 	&& aptitude clean \
 	&& rm -rf /var/lib/apt/lists/*
 
