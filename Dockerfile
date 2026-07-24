@@ -1,13 +1,17 @@
-FROM debian:12.8 AS base
+FROM debian:13 AS base
 
 LABEL maintainers=""
 LABEL org.opencontainers.image.source=https://github.com/CanastaWiki/CanastaBase
 
 ARG MW_VERSION=REL1_43
 ARG MW_CORE_VERSION=1.43.9
+ARG PHP_SERIES=8.2
+ARG LUASANDBOX_VERSION=4.1.3
+ARG LUASANDBOX_SHA256=b373705508fa3fe5a6f09c05c223b7c281dd29069b34b4f0e57ca30301ab01d8
 
 ENV MW_VERSION=${MW_VERSION} \
 	MW_CORE_VERSION=${MW_CORE_VERSION} \
+	PHP_SERIES=${PHP_SERIES} \
 	WWW_ROOT=/var/www/mediawiki \
 	MW_HOME=/var/www/mediawiki/w \
 	MW_LOG=/var/log/mediawiki \
@@ -26,15 +30,18 @@ LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
 RUN set -x; \
 	apt-get clean \
 	&& apt-get update \
-	&& apt-get install -y --no-install-recommends aptitude \
+	&& apt-get install -y --no-install-recommends aptitude ca-certificates curl \
+	&& curl -fsSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb \
+	&& dpkg -i /tmp/debsuryorg-archive-keyring.deb \
+	&& rm /tmp/debsuryorg-archive-keyring.deb \
+	&& echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ trixie main" > /etc/apt/sources.list.d/php.list \
+	&& apt-get update \
 	&& aptitude -y upgrade \
 	&& aptitude install -y --without-recommends \
 	git \
 	inotify-tools \
 	apache2 \
-	software-properties-common \
 	gpg \
-	apt-transport-https \
 	ca-certificates \
 	wget \
 	lsb-release \
@@ -54,24 +61,42 @@ RUN set -x; \
 	default-mysql-client \
 	rsync \
 	lynx \
-	php \
-	php-mysql \
-	php-cli \
-	php-gd \
-	php-mbstring \
-	php-xml \
-	php-intl \
-	php-opcache \
-	php-apcu \
-	php-redis \
-	php-curl \
-	php-zip \
-	php8.2-fpm \
-	php-yaml \
-	php-ldap \
-	php-bcmath \
-	php-luasandbox \
+	php${PHP_SERIES} \
+	php${PHP_SERIES}-mysql \
+	php${PHP_SERIES}-cli \
+	php${PHP_SERIES}-gd \
+	php${PHP_SERIES}-mbstring \
+	php${PHP_SERIES}-xml \
+	php${PHP_SERIES}-intl \
+	php${PHP_SERIES}-opcache \
+	php${PHP_SERIES}-apcu \
+	php${PHP_SERIES}-redis \
+	php${PHP_SERIES}-curl \
+	php${PHP_SERIES}-zip \
+	php${PHP_SERIES}-fpm \
+	php${PHP_SERIES}-yaml \
+	php${PHP_SERIES}-ldap \
+	php${PHP_SERIES}-bcmath \
+	liblua5.1-0 \
 	libapache2-mod-fcgid \
+	build-essential \
+	liblua5.1-0-dev \
+	php${PHP_SERIES}-dev \
+	&& curl -fsSLo /tmp/luasandbox.tar.gz "https://github.com/wikimedia/mediawiki-php-luasandbox/archive/refs/tags/${LUASANDBOX_VERSION}.tar.gz" \
+	&& echo "${LUASANDBOX_SHA256}  /tmp/luasandbox.tar.gz" | sha256sum -c - \
+	&& mkdir /tmp/luasandbox \
+	&& tar -xzf /tmp/luasandbox.tar.gz --strip-components=1 -C /tmp/luasandbox \
+	&& cd /tmp/luasandbox \
+	&& phpize${PHP_SERIES} \
+	&& ./configure --with-php-config=/usr/bin/php-config${PHP_SERIES} \
+	&& make -j"$(nproc)" \
+	&& make install \
+	&& echo "extension=luasandbox.so" > /etc/php/${PHP_SERIES}/mods-available/luasandbox.ini \
+	&& phpenmod -v "${PHP_SERIES}" luasandbox \
+	&& cd / \
+	&& rm -rf /tmp/luasandbox /tmp/luasandbox.tar.gz \
+	&& apt-get purge -y --auto-remove build-essential liblua5.1-0-dev php${PHP_SERIES}-dev \
+	&& php${PHP_SERIES} -m | grep -Fx luasandbox \
 	&& aptitude clean \
 	&& rm -rf /var/lib/apt/lists/*
 
@@ -85,7 +110,7 @@ RUN set -x; \
     && a2enmod rewrite \
 	# enabling mpm_event and php-fpm
 	&& a2dismod mpm_prefork \
-	&& a2enconf php8.2-fpm \
+	&& a2enconf php${PHP_SERIES}-fpm \
 	&& a2enmod mpm_event \
 	&& a2enmod proxy_fcgi \
     # Create directories
@@ -209,11 +234,11 @@ ENV MW_AUTOUPDATE=true \
 
 COPY _sources/configs/mediawiki.conf /etc/apache2/sites-enabled/
 COPY _sources/configs/status.conf /etc/apache2/mods-available/
-COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/cli/conf.d/
-COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php_max_input_vars.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php_timeouts.ini /etc/php/8.2/fpm/conf.d/
-COPY _sources/configs/php-fpm-www.conf /etc/php/8.2/fpm/pool.d/www.conf
+COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/${PHP_SERIES}/cli/conf.d/
+COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/${PHP_SERIES}/fpm/conf.d/
+COPY _sources/configs/php_max_input_vars.ini /etc/php/${PHP_SERIES}/fpm/conf.d/
+COPY _sources/configs/php_timeouts.ini /etc/php/${PHP_SERIES}/fpm/conf.d/
+COPY _sources/configs/php-fpm-www.conf /etc/php/${PHP_SERIES}/fpm/pool.d/www.conf
 COPY _sources/scripts/*.sh /
 COPY _sources/scripts/maintenance-scripts/*.sh /maintenance-scripts/
 COPY _sources/scripts/*.php $MW_HOME/maintenance/
@@ -248,7 +273,7 @@ RUN set -x; \
 	&& a2enmod expires remoteip\
 	&& a2disconf other-vhosts-access-log \
 	# Enable environment variables for FPM workers
-	&& sed -i '/clear_env/s/^;//' /etc/php/8.2/fpm/pool.d/www.conf
+	&& sed -i '/clear_env/s/^;//' /etc/php/${PHP_SERIES}/fpm/pool.d/www.conf
 
 COPY _sources/images/Powered-by-Canasta.png /var/www/mediawiki/w/resources/assets/
 

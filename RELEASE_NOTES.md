@@ -27,3 +27,4 @@ CanastaBase version history:
 - 1.3.12 - July 1, 2026 - Fail the image build if there are Git errors during extension and skin setup (#190)
 - 1.3.13 - July 2, 2026 - Idempotent Apache/.htaccess generation (#197); fail the build on Composer and Git errors (#195); maintenance-script fixes (#194); Dockerfile hardening (#198)
 - 1.3.14 - July 2, 2026 - Fix public_assets file serving (logo, favicon) for wikis.yaml with indented entries (#202)
+- 1.3.15 - July 23, 2026 - Upgrade base image from Debian 12 to Debian 13 (Trixie); install PHP 8.2 from Sury's repository for MediaWiki 1.43 compatibility; move PHP-FPM wiring from hardcoded paths/binaries to PHP_SERIES so Apache/FPM config, runtime scripts, and copied PHP ini files stay aligned; remove deprecated apt-transport-https from the package install list (HTTPS transport is built into modern apt).
