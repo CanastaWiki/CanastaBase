@@ -28,3 +28,4 @@ CanastaBase version history:
 - 1.3.13 - July 2, 2026 - Idempotent Apache/.htaccess generation (#197); fail the build on Composer and Git errors (#195); maintenance-script fixes (#194); Dockerfile hardening (#198)
 - 1.3.14 - July 2, 2026 - Fix public_assets file serving (logo, favicon) for wikis.yaml with indented entries (#202)
 - 1.3.15 - July 23, 2026 - Rebuild with current Debian 12 packages to remediate fixable HIGH/CRITICAL vulnerabilities in the 1.3.14 image (#208)
+- 1.3.16 - July 25, 2026 - Removed the unused MediaWiki web installer (mw-config) from the image (#213)
