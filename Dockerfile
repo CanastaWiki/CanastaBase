@@ -142,12 +142,15 @@ RUN set -x; \
         fi; \
     done
 
-# Cleanup all .git leftovers
+# Cleanup all .git leftovers and the unused MediaWiki web installer.
+# mw-config/ is the web installer UI; Canasta installs via maintenance/install.php
+# (CLI installer), so mw-config/ is dead weight and should not be web-reachable.
 # cd is used within a multi-command && chain
 # hadolint ignore=DL3003
 RUN set -x; \
     cd "$MW_HOME" \
-    && find . \( -name ".git" -o -name ".gitignore" -o -name ".gitmodules" -o -name ".gitattributes" \) -exec rm -rf -- {} +
+    && find . \( -name ".git" -o -name ".gitignore" -o -name ".gitmodules" -o -name ".gitattributes" \) -exec rm -rf -- {} + \
+    && rm -rf mw-config
 
 # Move files around
 RUN set -x; \
