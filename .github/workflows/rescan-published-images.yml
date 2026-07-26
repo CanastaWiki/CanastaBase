@@ -33,20 +33,14 @@ jobs:
       - name: Determine current tags
         id: tags
         run: |
-          MEDIAWIKI_VERSION=$(sed -nr 's/.*MW_CORE_VERSION=([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' Dockerfile | head -n1)
-          MEDIAWIKI_BRANCH=${MEDIAWIKI_VERSION%.*}
           CANASTA_VERSION=$(cat VERSION)
 
-          if [[ ! "$MEDIAWIKI_BRANCH" =~ ^[0-9]+\.[0-9]+$ ]] ||
-             [[ ! "$CANASTA_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Could not determine valid published image tags."
+          if [[ ! "$CANASTA_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Could not determine a valid published version tag."
             exit 1
           fi
 
-          {
-            echo "mediawiki=$MEDIAWIKI_BRANCH-latest"
-            echo "version=$CANASTA_VERSION"
-          } >> "$GITHUB_OUTPUT"
+          echo "version=$CANASTA_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         env:
@@ -62,7 +56,6 @@ jobs:
       - name: Scan tags and prepare report
         id: scan
         env:
-          MEDIAWIKI_TAG: ${{ steps.tags.outputs.mediawiki }}
           VERSION_TAG: ${{ steps.tags.outputs.version }}
         run: |
           RESULT_DIR="$RUNNER_TEMP/trivy-results"
@@ -73,7 +66,7 @@ jobs:
           : > "$FINDINGS"
           SCANNED=0
 
-          for TAG in latest "$MEDIAWIKI_TAG" "$VERSION_TAG"; do
+          for TAG in "$VERSION_TAG"; do
             INSPECT_ERROR="$RESULT_DIR/inspect-error"
             if ! MANIFEST=$(docker buildx imagetools inspect --raw "$IMAGE:$TAG" 2> "$INSPECT_ERROR"); then
               cat "$INSPECT_ERROR" >&2
