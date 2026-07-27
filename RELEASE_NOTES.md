@@ -30,3 +30,4 @@ CanastaBase version history:
 - 1.3.15 - July 23, 2026 - Rebuild with current Debian 12 packages to remediate fixable HIGH/CRITICAL vulnerabilities in the 1.3.14 image (#208)
 - 1.3.16 - July 25, 2026 - Removed the unused MediaWiki web installer (mw-config) from the image (#213)
 - 1.3.17 - July 27, 2026 - Apt-layer cache-bust (#217); Debian security package refresh (#208); version-tag-only image rescan (#219)
+- 1.3.18 - July 27, 2026 - robots.txt User-agent line and load.php allow restored (#224); scan tracker per cycle (#222)
