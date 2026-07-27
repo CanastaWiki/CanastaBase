@@ -20,11 +20,19 @@ ENV MW_VERSION=${MW_VERSION} \
 LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
       wiki.canasta.mediawiki.branch="$MW_VERSION"
 
+# Cache-bust the package-refresh layer below so a rebuild actually pulls current
+# Debian security updates instead of reusing a stale cached apt layer. CI passes a
+# value that changes daily (APT_REFRESH build-arg); when it changes, this layer and
+# everything after it rebuild against current mirrors. Referencing it inside the RUN
+# is what makes it part of the layer's cache key.
+ARG APT_REFRESH=unset
+
 # System setup
 # Pinning system package versions is impractical on Debian
 # hadolint ignore=DL3008
 RUN set -x; \
-	apt-get clean \
+	echo "apt refresh token: ${APT_REFRESH}" \
+	&& apt-get clean \
 	&& apt-get update \
 	&& apt-get install -y --no-install-recommends aptitude \
 	&& aptitude -y upgrade \
