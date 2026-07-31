@@ -266,7 +266,11 @@ COPY _sources/images/Powered-by-Canasta.png /var/www/mediawiki/w/resources/asset
 EXPOSE 80
 WORKDIR $MW_HOME
 
+# 127.0.0.1, not localhost: the name resolves to ::1 first on some
+# runtimes, and wget does not retry the other family once a connection
+# succeeds — so the check reached Apache over IPv6 and got MediaWiki's
+# 404 instead of the status handler.
 HEALTHCHECK --interval=1m --timeout=10s --start-period=5m \
-	CMD wget -q --method=HEAD localhost/server-status
+	CMD wget -q --method=HEAD 127.0.0.1/server-status
 
 CMD ["/run-all.sh"]
