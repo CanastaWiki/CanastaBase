@@ -31,3 +31,4 @@ CanastaBase version history:
 - 1.3.16 - July 25, 2026 - Removed the unused MediaWiki web installer (mw-config) from the image (#213)
 - 1.3.17 - July 27, 2026 - Apt-layer cache-bust (#217); Debian security package refresh (#208); version-tag-only image rescan (#219)
 - 1.3.18 - July 27, 2026 - robots.txt User-agent line and load.php allow restored (#224); scan tracker per cycle (#222)
+- 1.3.19 - July 31, 2026 - /server-status served to loopback over IPv6; healthcheck addresses it numerically (#227)
