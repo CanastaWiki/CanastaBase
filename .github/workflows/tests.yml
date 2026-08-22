@@ -70,5 +70,10 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install -r requirements-test.txt
 
+      # The CanastaFarm404.php tests render the page through php and skip
+      # when it is absent, so fail here rather than skipping silently.
+      - name: Check for php
+        run: php --version
+
       - name: Run tests
         run: .venv/bin/pytest tests/ -v
