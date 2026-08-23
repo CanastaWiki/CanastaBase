@@ -9,6 +9,11 @@
  * Variables in scope from the caller: $wikiConfigurations, $urlComponents, $path,
  * $directoryOnly.
  *
+ * Wiki logos are resolved server-side from public_assets/<wiki_id>/logo.<ext>,
+ * which the web server grants anonymously regardless of the wiki's read
+ * permissions. Wikis without such a file fall back to a client-side siteinfo
+ * lookup, which only works when the wiki is publicly readable.
+ *
  * In 404 mode, the directory is shown only when CANASTA_ENABLE_WIKI_DIRECTORY is "true".
  * In directory mode, the directory is always shown (the caller already checked the env var).
  */
@@ -18,6 +23,44 @@ $showDirectory = $directoryOnly || ( getenv( 'CANASTA_ENABLE_WIKI_DIRECTORY' ) =
 $scheme = parse_url( getenv( 'MW_SITE_SERVER' ) ?: 'https://localhost', PHP_URL_SCHEME ) ?: 'https';
 $requestedPath = isset( $urlComponents['path'] ) ? htmlspecialchars( $urlComponents['path'], ENT_QUOTES, 'UTF-8' ) : '/';
 $pageTitle = $directoryOnly ? 'Wiki Directory' : 'Page Not Found';
+
+$publicAssetsRoot = getenv( 'MW_VOLUME' ) ? rtrim( getenv( 'MW_VOLUME' ), '/' ) . '/public_assets' : '';
+
+// Extensions accepted for a conventional logo, in the order they win when a
+// wiki has more than one.
+$logoExtensions = [ 'svg', 'png', 'webp', 'jpg', 'jpeg', 'gif' ];
+
+/**
+ * Find a wiki's conventional logo file name, or null when it has none.
+ * The wiki ID is used as a path segment, so anything that could escape the
+ * public_assets root is rejected rather than sanitized.
+ */
+$findWikiLogo = static function ( $wikiId ) use ( $publicAssetsRoot, $logoExtensions ) {
+	if ( $publicAssetsRoot === '' || $wikiId === '' || preg_match( '#[/\\\\]|^\.#', $wikiId ) ) {
+		return null;
+	}
+	$entries = @scandir( $publicAssetsRoot . '/' . $wikiId );
+	if ( $entries === false ) {
+		return null;
+	}
+	// The name is matched case-insensitively; scandir sorts, so when a wiki
+	// holds both "Logo.png" and "logo.png" the first in sorted order wins.
+	$byExtension = [];
+	foreach ( $entries as $entry ) {
+		if ( preg_match( '/^logo\.([A-Za-z]+)$/i', $entry, $m ) ) {
+			$extension = strtolower( $m[1] );
+			if ( !isset( $byExtension[$extension] ) ) {
+				$byExtension[$extension] = $entry;
+			}
+		}
+	}
+	foreach ( $logoExtensions as $extension ) {
+		if ( isset( $byExtension[$extension] ) ) {
+			return $byExtension[$extension];
+		}
+	}
+	return null;
+};
 
 ?><!DOCTYPE html>
 <html lang="en">
@@ -39,7 +82,8 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Hel
 .wiki-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .wiki-card a{display:block;text-decoration:none;color:inherit;padding:20px;text-align:center}
 .wiki-card .logo{width:80px;height:80px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.wiki-card .logo img{max-width:80px;max-height:80px;display:none}
+.wiki-card .logo img{max-width:80px;max-height:80px}
+.wiki-card .logo img[data-api]{display:none}
 .wiki-card .name{font-size:16px;font-weight:600;color:#0645ad}
 </style>
 </head>
@@ -56,13 +100,19 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Hel
     <h2>Available wikis</h2>
     <div class="wiki-grid">
 <?php foreach ( $wikiConfigurations['wikis'] as $wiki ):
+	$rawWikiId = (string)( $wiki['id'] ?? '' );
+	$rawWikiUrl = $scheme . '://' . (string)( $wiki['url'] ?? '' );
 	$wikiName = htmlspecialchars( $wiki['name'] ?? $wiki['id'] ?? 'Wiki', ENT_QUOTES, 'UTF-8' );
-	$wikiUrl = $scheme . '://' . htmlspecialchars( $wiki['url'] ?? '', ENT_QUOTES, 'UTF-8' );
-	$wikiId = htmlspecialchars( $wiki['id'] ?? '', ENT_QUOTES, 'UTF-8' );
+	$wikiUrl = htmlspecialchars( $rawWikiUrl, ENT_QUOTES, 'UTF-8' );
+	$wikiId = htmlspecialchars( $rawWikiId, ENT_QUOTES, 'UTF-8' );
+	$logoFile = $findWikiLogo( $rawWikiId );
+	$logoAttr = $logoFile !== null
+		? 'src="' . htmlspecialchars( $rawWikiUrl . '/public_assets/' . rawurlencode( $logoFile ), ENT_QUOTES, 'UTF-8' ) . '"'
+		: 'data-api="' . $wikiUrl . '/w/api.php"';
 ?>
       <div class="wiki-card">
         <a href="<?php echo $wikiUrl; ?>">
-          <div class="logo"><img alt="" data-wiki-id="<?php echo $wikiId; ?>" data-api="<?php echo $wikiUrl; ?>/w/api.php"></div>
+          <div class="logo"><img alt="" data-wiki-id="<?php echo $wikiId; ?>" <?php echo $logoAttr; ?>></div>
           <div class="name"><?php echo $wikiName; ?></div>
         </a>
       </div>
@@ -70,6 +120,19 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Hel
     </div>
   </div>
 <script>
+// A server-resolved logo file can still fail to load — a wiki added to
+// wikis.yaml since the last restart has no public_assets rewrite yet.
+// Hide those rather than leaving a broken-image glyph in the card.
+document.querySelectorAll('.wiki-card img[src]').forEach(function(img) {
+  var hide = function() {
+    img.style.display = 'none';
+  };
+  if (img.complete && img.naturalWidth === 0) {
+    hide();
+    return;
+  }
+  img.addEventListener('error', hide);
+});
 document.querySelectorAll('.wiki-card img[data-api]').forEach(function(img) {
   var url = img.getAttribute('data-api') +
     '?action=query&meta=siteinfo&siprop=general&format=json&origin=*';

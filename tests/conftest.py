@@ -1,5 +1,6 @@
 """Shared fixtures for CanastaBase tests."""
 
+import json
 import os
 import subprocess
 
@@ -110,3 +111,61 @@ def script_runner(workspace):
         return run_script(workspace)
     _run.workspace = workspace
     return _run
+
+
+FARM_404 = os.path.join(REPO_ROOT, "_sources", "canasta", "CanastaFarm404.php")
+
+# CanastaFarm404.php is normally required by FarmConfigLoader.php with
+# $wikiConfigurations / $urlComponents / $directoryOnly already in scope.
+# This harness reproduces that calling convention outside MediaWiki.
+FARM_404_HARNESS = """<?php
+$wikiConfigurations = json_decode( file_get_contents( $argv[1] ), true );
+$urlComponents = [ 'path' => $argv[2] ];
+$path = '';
+$directoryOnly = $argv[3] === '1';
+require getenv( 'FARM_404_PHP' );
+"""
+
+
+@pytest.fixture
+def farm_page(tmp_path):
+    """Render CanastaFarm404.php through the real php binary and return
+    the HTML.
+
+    The callable takes the wikis list that would come from wikis.yaml,
+    an optional {wiki_id: [filenames]} map of files to create under
+    public_assets/<wiki_id>/, and the directory/404 mode flag.
+    """
+    mw_volume = tmp_path / "farm-mediawiki"
+    (mw_volume / "public_assets").mkdir(parents=True)
+    harness = tmp_path / "render_farm_404.php"
+    harness.write_text(FARM_404_HARNESS)
+
+    def _render(wikis, assets=None, directory_only=True, site_server="https://example.com"):
+        for wiki_id, filenames in (assets or {}).items():
+            asset_dir = mw_volume / "public_assets" / wiki_id
+            asset_dir.mkdir(parents=True, exist_ok=True)
+            for filename in filenames:
+                (asset_dir / filename).write_bytes(b"")
+        config = tmp_path / "wikis.json"
+        config.write_text(json.dumps({"wikis": wikis}))
+        env = os.environ.copy()
+        env.update({
+            "FARM_404_PHP": FARM_404,
+            "MW_VOLUME": str(mw_volume),
+            "MW_SITE_SERVER": site_server,
+            "CANASTA_ENABLE_WIKI_DIRECTORY": "true",
+        })
+        result = subprocess.run(
+            ["php", str(harness), str(config), "/missing",
+             "1" if directory_only else "0"],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stderr == "", result.stderr
+        return result.stdout
+
+    _render.mw_volume = mw_volume
+    return _render
