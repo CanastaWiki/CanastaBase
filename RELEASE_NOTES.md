@@ -32,3 +32,4 @@ CanastaBase version history:
 - 1.3.17 - July 27, 2026 - Apt-layer cache-bust (#217); Debian security package refresh (#208); version-tag-only image rescan (#219)
 - 1.3.18 - July 27, 2026 - robots.txt User-agent line and load.php allow restored (#224); scan tracker per cycle (#222)
 - 1.3.19 - August 1, 2026 - /server-status served to loopback over IPv6; healthcheck addresses it numerically (#227)
+- 1.3.20 - August 24, 2026 - Wiki directory logos on private wikis (#231); Debian security package refresh (#229); upstream composer pin patching removed (#233)
