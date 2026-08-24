@@ -124,12 +124,6 @@ RUN set -x; \
 	&& cd "$MW_HOME" \
 	&& git submodule update --init --recursive
 
-# Patch composer
-RUN set -x; \
-    sed -i 's="monolog/monolog": "2.2.0",="monolog/monolog": "^2.2",=g' "$MW_HOME/composer.json"
-
-# Other patches
-
 # Generate gitinfo.json for core, extensions, and skins so that
 # Special:Version can display git commit hashes after .git is removed
 # cd is used within a loop that returns to $MW_HOME
