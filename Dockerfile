@@ -15,6 +15,7 @@ ENV MW_VERSION=${MW_VERSION} \
 	MW_VOLUME=/mediawiki \
 	WWW_USER=www-data \
     WWW_GROUP=www-data \
+    LINKS_USER=canasta-links \
     APACHE_LOG_DIR=/var/log/apache2
 
 LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
@@ -228,6 +229,10 @@ COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 RUN set -x; \
 	chmod -v +x /*.sh \
 	&& chmod -v +x /maintenance-scripts/*.sh \
+	# The directory monitor maintains the links in extensions/ and skins/ as
+	# this user, which owns only those two directories
+	&& useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin "$LINKS_USER" \
+	&& chown "$LINKS_USER:$LINKS_USER" "$MW_HOME/extensions" "$MW_HOME/skins" \
 	# Comment out ErrorLog and CustomLog parameters, we use rotatelogs in mediawiki.conf for the log files
 	&& sed -i 's/^\(\s*ErrorLog .*\)/# \1/g' /etc/apache2/apache2.conf \
 	&& sed -i 's/^\(\s*CustomLog .*\)/# \1/g' /etc/apache2/apache2.conf \

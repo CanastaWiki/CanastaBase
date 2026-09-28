@@ -50,7 +50,20 @@ class TestCodeIsRootOwned:
             dockerfile,
         )
 
-    def test_monitor_runs_as_root(self):
+    def test_links_user_owns_only_the_link_dirs(self):
+        dockerfile = read(DOCKERFILE)
+        assert re.search(r"^\s*LINKS_USER=canasta-links\b", dockerfile, re.M)
+        assert re.search(
+            r'useradd --system [^\n]*--shell /usr/sbin/nologin "\$LINKS_USER"',
+            dockerfile,
+        )
+        chowns = re.findall(r'chown[^\n]*\$LINKS_USER[^\n]*', dockerfile)
+        assert chowns == [
+            'chown "$LINKS_USER:$LINKS_USER" "$MW_HOME/extensions" '
+            '"$MW_HOME/skins" \\'
+        ], "only the two link directories, and not recursively"
+
+    def test_monitor_runs_as_links_user(self):
         text = read(RUN_MAINT)
         branch = re.search(
             r'elif \[\[ "\$script_name" == monitor-directories\.sh \]\]; then'
@@ -59,8 +72,12 @@ class TestCodeIsRootOwned:
             re.S,
         )
         assert branch, "monitor-directories.sh needs its own branch"
-        assert "runuser" not in branch.group(1)
-        assert "/maintenance-scripts/$script_name" in branch.group(1)
+        assert re.search(
+            r'runuser -c "/maintenance-scripts/\$script_name" '
+            r'-s /bin/bash "\$LINKS_USER"',
+            branch.group(1),
+        )
+        assert "WWW_USER" not in branch.group(1)
 
 
 class TestConfigIsNotWritable:
