@@ -16,6 +16,7 @@ echo "Syncing files..."
 rsync -ah --inplace --ignore-existing \
   -og --chown="$WWW_GROUP:$WWW_USER" --chmod=Fg=rw,Dg=rwx \
   "$MW_ORIGIN_FILES"/ "$MW_VOLUME"/
+protect_config
 
 # Create needed directories
 mkdir -p "$MW_VOLUME"/l10n_cache
@@ -185,9 +186,9 @@ if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ 
   if [ -f "$MW_HOME/extensions/SemanticMediaWiki/extension.json" ]; then
     mkdir -p "$MW_VOLUME/config/persistent"
     # Heal config/persistent ownership before run_autoupdate so setupStore.php
-    # (invoked by update.php) can write .smw.json. The recursive make_dir_writable
-    # on $MW_VOLUME runs later and in the background — too late for setupStore on
-    # this start. Scoped to just this directory to stay cheap.
+    # (invoked by update.php) can write .smw.json. The make_dir_writable on the
+    # writable volume dirs runs later and in the background — too late for
+    # setupStore on this start. Scoped to just this directory to stay cheap.
     make_dir_writable "$MW_VOLUME/config/persistent"
     SMW_WIKIS_BEFORE=""
     if [ -f "$SMW_JSON" ]; then
@@ -259,8 +260,12 @@ else
     chmod -R go=rwX "$MW_LOG"
 fi
 
-echo "Checking permissions of MediaWiki volume dir $MW_VOLUME except $MW_VOLUME/images..."
-make_dir_writable "$MW_VOLUME" -not '(' -path "$MW_VOLUME/images" -prune ')' &
+echo "Checking permissions of the writable MediaWiki volume dirs..."
+writable_dirs=()
+for dir in cache l10n_cache extensions skins public_assets config/persistent; do
+    [ -d "$MW_VOLUME/$dir" ] && writable_dirs+=("$MW_VOLUME/$dir")
+done
+[ ${#writable_dirs[@]} -gt 0 ] && make_dir_writable "${writable_dirs[@]}" &
 
 # Running php-fpm
 /run-php-fpm.sh &

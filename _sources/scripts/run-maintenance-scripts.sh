@@ -166,6 +166,10 @@ run_maintenance_scripts() {
     # If the script's name starts with "mw_", run it with the run_mw_script function
     if [[ "$script_name" == mw* ]]; then
       run_mw_script "$script_name" &
+    elif [[ "$script_name" == monitor-directories.sh ]]; then
+      # Maintains the links in the root-owned extensions/ and skins/.
+      echo "Running $script_name as root..."
+      nice -n 20 "/maintenance-scripts/$script_name" &
     else
       # If the script's name doesn't start with "mw"
       echo "Running $script_name with user $WWW_USER..."

@@ -1,9 +1,9 @@
 """Tests for _sources/configs/writable-dirs.conf.
 
-Every directory under the docroot that the web server user can write to
-must refuse direct requests for PHP files and ignore .htaccess. The set
-of directories is derived from the Dockerfile, so a directory that
-becomes web-writable without a matching block fails here.
+Every directory under the docroot that the web server user can write to,
+and every code directory, must refuse direct requests for PHP files and
+ignore .htaccess. The symlinked volume directories are derived from the
+Dockerfile, so one added without a matching block fails here.
 """
 
 import os
@@ -17,6 +17,9 @@ CONF = os.path.join(REPO_ROOT, "_sources", "configs", "writable-dirs.conf")
 
 MW_HOME = "/var/www/mediawiki/w"
 MW_VOLUME = "/mediawiki"
+# Code directories, root-owned in the image. They get the same guard in case
+# anything writable is ever linked into them.
+CODE = ["extensions", "skins", "canasta-extensions", "canasta-skins"]
 # Host mounts added by the Compose and Helm definitions, not the Dockerfile.
 MOUNTED = ["user-extensions", "user-skins"]
 
@@ -34,15 +37,11 @@ def conf_blocks():
 
 
 def web_writable_dirs():
-    dockerfile = read(DOCKERFILE)
-    chowned = re.findall(
-        r'chown "\$WWW_USER:\$WWW_GROUP" -R "\$MW_HOME/([\w-]+)"', dockerfile
-    )
     linked = re.findall(
-        r'ln -s "\$MW_VOLUME/([\w-]+)" "\$MW_HOME/\1"', dockerfile
+        r'ln -s "\$MW_VOLUME/([\w-]+)" "\$MW_HOME/\1"', read(DOCKERFILE)
     )
-    assert chowned and linked, "Dockerfile patterns no longer match"
-    dirs = {f"{MW_HOME}/{d}" for d in chowned + linked + MOUNTED}
+    assert linked, "Dockerfile symlink pattern no longer matches"
+    dirs = {f"{MW_HOME}/{d}" for d in CODE + linked + MOUNTED}
     dirs |= {f"{MW_VOLUME}/{d}" for d in linked}
     return sorted(dirs)
 

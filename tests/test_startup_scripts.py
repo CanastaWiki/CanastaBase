@@ -225,7 +225,7 @@ class TestComposerHashFileLocation:
 class TestPersistentDirWritableBeforeAutoupdate:
     """#172 — config/persistent must be made writable by the web user
     *before* run_autoupdate, so setupStore.php (invoked by update.php) can
-    persist .smw.json. The recursive make_dir_writable on $MW_VOLUME runs
+    persist .smw.json. The make_dir_writable on the writable volume dirs runs
     later and in the background, too late to help SMW on the current start."""
 
     def test_persistent_healed_before_run_autoupdate(self):
