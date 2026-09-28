@@ -166,6 +166,9 @@ run_maintenance_scripts() {
     # If the script's name starts with "mw_", run it with the run_mw_script function
     if [[ "$script_name" == mw* ]]; then
       run_mw_script "$script_name" &
+    elif [[ "$script_name" == monitor-directories.sh ]]; then
+      echo "Running $script_name with user $LINKS_USER..."
+      nice -n 20 runuser -c "/maintenance-scripts/$script_name" -s /bin/bash "$LINKS_USER" &
     else
       # If the script's name doesn't start with "mw"
       echo "Running $script_name with user $WWW_USER..."

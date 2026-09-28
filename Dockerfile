@@ -15,6 +15,7 @@ ENV MW_VERSION=${MW_VERSION} \
 	MW_VOLUME=/mediawiki \
 	WWW_USER=www-data \
     WWW_GROUP=www-data \
+    LINKS_USER=canasta-links \
     APACHE_LOG_DIR=/var/log/apache2
 
 LABEL wiki.canasta.mediawiki.version="$MW_CORE_VERSION" \
@@ -162,11 +163,9 @@ RUN set -x; \
     # Move extensions and skins to prefixed directories not intended to be volumed in
     && mv "$MW_HOME/extensions" "$MW_HOME/canasta-extensions" \
     && mv "$MW_HOME/skins" "$MW_HOME/canasta-skins" \
-    # Permissions
-    && chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/canasta-extensions" \
-    && chmod g+w -R "$MW_HOME/canasta-extensions" \
-    && chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/canasta-skins" \
-    && chmod g+w -R "$MW_HOME/canasta-skins" \
+    # Code stays root-owned: the web server user only needs to read it
+    && chown -R root:root "$MW_HOME/canasta-extensions" "$MW_HOME/canasta-skins" \
+    && chmod -R u=rwX,go=rX "$MW_HOME/canasta-extensions" "$MW_HOME/canasta-skins" \
     # Create symlinks from $MW_VOLUME to the wiki root for images, cache, and public_assets directories
     && ln -s "$MW_VOLUME/images" "$MW_HOME/images" \
     && ln -s "$MW_VOLUME/cache" "$MW_HOME/cache" \
@@ -174,12 +173,8 @@ RUN set -x; \
 
 # Create place where extensions and skins symlinks will live
 RUN set -x; \
-    mkdir "$MW_HOME/extensions/" \
-    && mkdir "$MW_HOME/skins/" \
-	&& chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/extensions" \
-    && chmod g+w -R "$MW_HOME/extensions" \
-	&& chown "$WWW_USER:$WWW_GROUP" -R "$MW_HOME/skins" \
-    && chmod g+w -R "$MW_HOME/skins"
+    mkdir -m 0755 "$MW_HOME/extensions/" \
+    && mkdir -m 0755 "$MW_HOME/skins/"
 
 FROM base AS final
 
@@ -234,6 +229,10 @@ COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 RUN set -x; \
 	chmod -v +x /*.sh \
 	&& chmod -v +x /maintenance-scripts/*.sh \
+	# The directory monitor maintains the links in extensions/ and skins/ as
+	# this user, which owns only those two directories
+	&& useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin "$LINKS_USER" \
+	&& chown "$LINKS_USER:$LINKS_USER" "$MW_HOME/extensions" "$MW_HOME/skins" \
 	# Comment out ErrorLog and CustomLog parameters, we use rotatelogs in mediawiki.conf for the log files
 	&& sed -i 's/^\(\s*ErrorLog .*\)/# \1/g' /etc/apache2/apache2.conf \
 	&& sed -i 's/^\(\s*CustomLog .*\)/# \1/g' /etc/apache2/apache2.conf \

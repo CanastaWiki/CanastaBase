@@ -56,6 +56,22 @@ make_dir_writable() {
          -exec chgrp "$WWW_GROUP" {} \; -exec chmod g=rwX {} \;
 }
 
+# Make $MW_VOLUME/config, except persistent/, unwritable by the web server
+# user: anything it owns goes to the owner of wikis.yaml (the user the CLI
+# writes as, or root), and group and other write is removed.
+protect_config() {
+    local config="$MW_VOLUME/config" owner www_uid
+    [ -d "$config" ] || return 0
+    www_uid=$(id -u "$WWW_USER")
+    owner=$(stat -c '%u' "$config/wikis.yaml" 2>/dev/null) || owner=0
+    [ "$owner" = "$www_uid" ] && owner=0
+    find "$config" -path "$config/persistent" -prune -o \
+        -user "$WWW_USER" -exec chown -h "$owner" {} + 2>/dev/null
+    find "$config" -path "$config/persistent" -prune -o \
+        ! -type l -perm /go=w -exec chmod go-w {} + 2>/dev/null
+    return 0
+}
+
 get_wiki_ids() {
     # Get all wiki IDs from wikis.yaml
     # Returns one wiki ID per line, or empty if wikis.yaml doesn't exist
