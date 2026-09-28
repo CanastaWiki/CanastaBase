@@ -213,6 +213,7 @@ ENV MW_AUTOUPDATE=true \
 	LOG_FILES_REMOVE_OLDER_THAN_DAYS=10
 
 COPY _sources/configs/mediawiki.conf /etc/apache2/sites-enabled/
+COPY _sources/configs/writable-dirs.conf /etc/apache2/conf-available/
 COPY _sources/configs/status.conf /etc/apache2/mods-available/
 COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/cli/conf.d/
 COPY _sources/configs/php_error_reporting.ini _sources/configs/php_upload_max_filesize.ini _sources/configs/php_memory_limit.ini /etc/php/8.2/fpm/conf.d/
@@ -251,7 +252,10 @@ RUN set -x; \
 	# Apache to serve files from that path tree.
 	&& printf '\n<Directory /mediawiki/public_assets>\n    Require all granted\n    Options -Indexes\n</Directory>\n' >> /etc/apache2/apache2.conf \
 	&& a2enmod expires remoteip\
+	&& a2enconf writable-dirs \
 	&& a2disconf other-vhosts-access-log \
+	# Fail the build rather than the container start on an Apache config error
+	&& apachectl -t \
 	# Enable environment variables for FPM workers
 	&& sed -i '/clear_env/s/^;//' /etc/php/8.2/fpm/pool.d/www.conf
 
