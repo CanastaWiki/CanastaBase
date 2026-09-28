@@ -254,6 +254,8 @@ RUN set -x; \
 	&& a2enmod expires remoteip\
 	&& a2enconf writable-dirs \
 	&& a2disconf other-vhosts-access-log \
+	# Fail the build rather than the container start on an Apache config error
+	&& apachectl -t \
 	# Enable environment variables for FPM workers
 	&& sed -i '/clear_env/s/^;//' /etc/php/8.2/fpm/pool.d/www.conf
 
