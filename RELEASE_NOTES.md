@@ -34,3 +34,4 @@ CanastaBase version history:
 - 1.3.19 - August 1, 2026 - /server-status served to loopback over IPv6; healthcheck addresses it numerically (#227)
 - 1.3.20 - August 24, 2026 - Wiki directory logos on private wikis (#231); Debian security package refresh (#229); upstream composer pin patching removed (#233)
 - 1.3.21 - September 24, 2026 - Debian security update and other package updates
+- 1.3.22 - September 28, 2026 - No PHP in web-writable dirs (#239); `exec` logging (#240); code and `config/` read-only to web user (#242)
