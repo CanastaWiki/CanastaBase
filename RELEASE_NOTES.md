@@ -36,3 +36,4 @@ CanastaBase version history:
 - 1.3.21 - September 24, 2026 - Debian security update and other package updates
 - 1.3.22 - September 28, 2026 - No PHP in web-writable dirs (#239); `exec` logging (#240); code and `config/` read-only to web user (#242)
 - 1.3.23 - October 2, 2026 - Upgrade to MediaWiki 1.43.10 (#246); Debian security package refresh (#229)
+- 1.3.24 - October 5, 2026 - Upgrade to MediaWiki 1.43.11 (#251); Debian security package refresh (#249)
