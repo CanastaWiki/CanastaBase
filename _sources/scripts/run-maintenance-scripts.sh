@@ -137,7 +137,8 @@ run_autoupdate () {
         while IFS= read -r wiki_id; do
             if [ -n "$wiki_id" ]; then
                 echo >&2 "Running maintenance/update.php for wiki: $wiki_id"
-                run_maintenance_script_if_needed "maintenance_update_$wiki_id" "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
+                wiki_version_hash=$(php /getMediawikiSettings.php --versions --format=md5 --wiki="$wiki_id")
+                run_maintenance_script_if_needed "maintenance_update_$wiki_id" "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$wiki_version_hash" \
                     "maintenance/update.php --quick --wiki=$wiki_id" || {
                         rc=$?
                         echo >&2 "An error occurred when auto-update script was running for wiki: $wiki_id"
