@@ -14,6 +14,9 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    env:
+      # Fork PRs get a read-only token: scan, but upload nothing.
+      CAN_PUBLISH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - uses: actions/checkout@v6
 
@@ -29,6 +32,7 @@ jobs:
           .semgrep/bin/semgrep scan --config p/php --include '*.php' --sarif --output semgrep.sarif _sources
 
       - name: Upload Semgrep results to GitHub Security
+        if: env.CAN_PUBLISH == 'true'
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           sarif_file: semgrep.sarif
@@ -38,6 +42,7 @@ jobs:
         run: .semgrep/bin/semgrep scan --config p/security-audit --include '*.sh' --exclude '**/wait-for-it.sh' --sarif --output semgrep-shell.sarif _sources
 
       - name: Upload shell Semgrep results to GitHub Security
+        if: env.CAN_PUBLISH == 'true'
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           sarif_file: semgrep-shell.sarif
