@@ -89,3 +89,21 @@ get_wiki_ids() {
         "
     fi
 }
+
+get_wiki_urls() {
+    # Get all wiki URLs (host[:port][/path]) from wikis.yaml
+    # Returns one URL per line, or empty if wikis.yaml doesn't exist
+    local wikis_yaml="$MW_VOLUME/config/wikis.yaml"
+    if [ -f "$wikis_yaml" ]; then
+        php -r "
+            \$config = yaml_parse_file('$wikis_yaml');
+            if (\$config && isset(\$config['wikis'])) {
+                foreach (\$config['wikis'] as \$wiki) {
+                    if (isset(\$wiki['url'])) {
+                        echo \$wiki['url'] . \"\\n\";
+                    }
+                }
+            }
+        "
+    fi
+}

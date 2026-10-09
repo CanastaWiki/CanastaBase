@@ -10,8 +10,8 @@ import textwrap
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SCRIPTS = os.path.join(REPO_ROOT, "_sources", "scripts")
 
-# php stub: answers getMediawikiSettings.php per wiki, keyed by the --wiki
-# argument ("" when absent) and logs each call.
+# php stub: answers getMediawikiSettings.php --versions per wiki, keyed by the
+# --wiki argument ("default" when absent), and logs each call.
 PHP_STUB = textwrap.dedent("""
     php() {
         local wiki="" arg
@@ -21,7 +21,6 @@ PHP_STUB = textwrap.dedent("""
         echo "php $*" >> "$PHP_LOG"
         case " $* " in
             *" --versions "*) echo "hash-${wiki:-default}" ;;
-            *"--variable=wgServer"*) server_for "${wiki:-default}" ;;
         esac
     }
 """)
@@ -71,15 +70,13 @@ class TestAutoupdateHashPerWiki:
 
 class TestDockerGatewayMapsEveryWiki:
 
-    def _run(self, tmp_path, wiki_ids, servers):
+    def _run(self, tmp_path, wiki_urls, wg_server=""):
         hosts = tmp_path / "hosts"
         hosts.write_text("127.0.0.1 localhost\n10.0.0.1 old # MW_SITE_HOST\n")
         with open(os.path.join(SCRIPTS, "update-docker-gateway.sh")) as f:
             body = f.read()
         body = body.replace(". /functions.sh", "").replace(
             "/etc/hosts", str(hosts))
-        server_cases = " ".join(
-            "%s) echo %s ;;" % (k, v) for k, v in servers.items())
         script = textwrap.dedent("""
             export HOME=%(home)s
             export MW_MAP_DOMAIN_TO_DOCKER_GATEWAY=true
@@ -89,37 +86,39 @@ class TestDockerGatewayMapsEveryWiki:
                 if [ "$1" = "-i" ]; then shift; command sed -i.bak "$@"
                 else command sed "$@"; fi
             }
-            get_wiki_ids() { printf '%%s' "%(wiki_ids)s"; }
-            get_mediawiki_variable() { php --variable="$1"; }
-            server_for() { case $1 in %(servers)s esac; }
-            %(php)s
+            get_wiki_urls() { printf '%%s' "%(wiki_urls)s"; }
+            get_mediawiki_variable() { echo "%(wg_server)s"; }
         """) % {
             "home": tmp_path,
-            "wiki_ids": wiki_ids,
-            "servers": server_cases,
-            "php": PHP_STUB,
+            "wiki_urls": wiki_urls,
+            "wg_server": wg_server,
         } + body
         result = _bash(script, tmp_path)
-        return result, hosts.read_text()
+        mapped = [l for l in hosts.read_text().splitlines()
+                  if "# MW_SITE_HOST" in l]
+        return result, hosts.read_text(), mapped
 
     def test_farm_maps_each_distinct_host_once(self, tmp_path):
-        result, hosts = self._run(tmp_path, "a\nb\nc\nd\n", {
-            "a": "https://one.example.com",
-            "b": "https://two.example.com:8443",
-            "c": "https://one.example.com/sub",
-            "d": "https://10.1.2.3",
-        })
+        result, hosts, mapped = self._run(tmp_path, "\n".join([
+            "one.example.com",
+            "two.example.com:8443",
+            "one.example.com/sub",
+            "10.1.2.3",
+        ]) + "\n")
         assert result.returncode == 0, result.stderr
-        mapped = [l for l in hosts.splitlines() if "# MW_SITE_HOST" in l]
         assert mapped == [
             "172.17.0.1 one.example.com # MW_SITE_HOST",
             "172.17.0.1 two.example.com # MW_SITE_HOST",
         ]
         assert "127.0.0.1 localhost" in hosts
 
-    def test_single_wiki_maps_its_host(self, tmp_path):
-        result, hosts = self._run(
-            tmp_path, "", {"default": "https://solo.example.com"})
+    def test_single_wiki_maps_wgserver_host(self, tmp_path):
+        result, _, mapped = self._run(
+            tmp_path, "", wg_server="https://solo.example.com")
         assert result.returncode == 0, result.stderr
-        mapped = [l for l in hosts.splitlines() if "# MW_SITE_HOST" in l]
         assert mapped == ["172.17.0.1 solo.example.com # MW_SITE_HOST"]
+
+    def test_hostless_wgserver_maps_nothing(self, tmp_path):
+        result, _, mapped = self._run(tmp_path, "", wg_server="http://")
+        assert result.returncode == 0, result.stderr
+        assert mapped == []

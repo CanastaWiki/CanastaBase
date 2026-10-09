@@ -16,26 +16,19 @@ if [ -z "$DOCKER_GATEWAY" ]; then
   DOCKER_GATEWAY="172.17.0.1"
 fi
 
-wiki_ids=$(get_wiki_ids)
-if [ -n "$wiki_ids" ]; then
-    WG_SITE_SERVERS=""
-    while IFS= read -r wiki_id; do
-        if [ -n "$wiki_id" ]; then
-            WG_SITE_SERVERS+="$(php /getMediawikiSettings.php --variable=wgServer --format=string --wiki="$wiki_id")"$'\n'
-        fi
-    done <<< "$wiki_ids"
-else
-    WG_SITE_SERVERS=$(get_mediawiki_variable wgServer)
+SITE_URLS=$(get_wiki_urls)
+if [ -z "$SITE_URLS" ]; then
+    SITE_URLS=$(get_mediawiki_variable wgServer)
 fi
 
 # Map hosts for VisualEditor
 cp /etc/hosts ~/hosts.new
 sed -i '/# MW_SITE_HOST/d' ~/hosts.new
 MAPPED_HOSTS=" "
-while IFS= read -r WG_SITE_SERVER; do
-    [ -n "$WG_SITE_SERVER" ] || continue
-    MW_SITE_HOST=$(echo "$WG_SITE_SERVER" | sed -e 's|^[^/]*//||' -e 's|[:/].*$||')
-    if [[ $MAPPED_HOSTS == *" $MW_SITE_HOST "* ]]; then
+while IFS= read -r SITE_URL; do
+    [ -n "$SITE_URL" ] || continue
+    MW_SITE_HOST=$(echo "$SITE_URL" | sed -e 's|^[^/]*//||' -e 's|[:/].*$||')
+    if [ -z "$MW_SITE_HOST" ] || [[ $MAPPED_HOSTS == *" $MW_SITE_HOST "* ]]; then
         continue
     fi
     MAPPED_HOSTS+="$MW_SITE_HOST "
@@ -47,5 +40,5 @@ while IFS= read -r WG_SITE_SERVER; do
         echo "Adding MW_SITE_HOST '$DOCKER_GATEWAY $MW_SITE_HOST' to /etc/hosts"
         echo "$DOCKER_GATEWAY $MW_SITE_HOST # MW_SITE_HOST" >> ~/hosts.new
     fi
-done <<< "$WG_SITE_SERVERS"
+done <<< "$SITE_URLS"
 cp -f ~/hosts.new /etc/hosts
