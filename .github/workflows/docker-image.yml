@@ -31,9 +31,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'pull_request'
-    env:
-      # Fork PRs get a read-only token: build and scan, but publish nothing.
-      CAN_PUBLISH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - uses: actions/checkout@v4
       -
@@ -62,6 +59,9 @@ jobs:
       packages: write
       pull-requests: write
       security-events: write
+    env:
+      # Fork PRs get a read-only token: build and scan, but publish nothing.
+      CAN_PUBLISH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
