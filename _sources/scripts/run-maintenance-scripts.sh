@@ -131,6 +131,7 @@ run_autoupdate () {
     # Get all wiki IDs (if wiki farm) or use empty string for single wiki
     wiki_ids=$(get_wiki_ids)
 
+    rc=0
     if [ -n "$wiki_ids" ]; then
         # Wiki farm: run update.php for each wiki
         echo >&2 "Wiki farm detected, running maintenance for all wikis..."
@@ -141,7 +142,6 @@ run_autoupdate () {
                     "maintenance/update.php --quick --wiki=$wiki_id" || {
                         rc=$?
                         echo >&2 "An error occurred when auto-update script was running for wiki: $wiki_id"
-                        return $rc
                     }
             fi
         done <<< "$wiki_ids"
@@ -155,6 +155,10 @@ run_autoupdate () {
             }
     fi
 
+    if [ "$rc" -ne 0 ]; then
+        echo >&2 "Auto-update completed with errors"
+        return $rc
+    fi
     echo >&2 "Auto-update completed"
 }
 
