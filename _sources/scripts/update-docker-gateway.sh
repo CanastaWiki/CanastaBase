@@ -16,13 +16,22 @@ if [ -z "$DOCKER_GATEWAY" ]; then
   DOCKER_GATEWAY="172.17.0.1"
 fi
 
-WG_SITE_SERVER=$(get_mediawiki_variable wgServer)
+SITE_URLS=$(get_wiki_urls)
+if [ -z "$SITE_URLS" ]; then
+    SITE_URLS=$(get_mediawiki_variable wgServer)
+fi
 
-# Map host for VisualEditor
+# Map hosts for VisualEditor
 cp /etc/hosts ~/hosts.new
 sed -i '/# MW_SITE_HOST/d' ~/hosts.new
-if [ -n "$WG_SITE_SERVER" ]; then
-    MW_SITE_HOST=$(echo "$WG_SITE_SERVER" | sed -e 's|^[^/]*//||' -e 's|[:/].*$||')
+MAPPED_HOSTS=" "
+while IFS= read -r SITE_URL; do
+    [ -n "$SITE_URL" ] || continue
+    MW_SITE_HOST=$(echo "$SITE_URL" | sed -e 's|^[^/]*//||' -e 's|[:/].*$||')
+    if [ -z "$MW_SITE_HOST" ] || [[ $MAPPED_HOSTS == *" $MW_SITE_HOST "* ]]; then
+        continue
+    fi
+    MAPPED_HOSTS+="$MW_SITE_HOST "
     if ! isTrue "$MW_MAP_DOMAIN_TO_DOCKER_GATEWAY"; then
         echo "MW_MAP_DOMAIN_TO_DOCKER_GATEWAY is not true"
     elif [[ $MW_SITE_HOST =~ ^[0-9]+.[0-9]+.[0-9]+.[0-9]+$ ]]; then
@@ -31,5 +40,5 @@ if [ -n "$WG_SITE_SERVER" ]; then
         echo "Adding MW_SITE_HOST '$DOCKER_GATEWAY $MW_SITE_HOST' to /etc/hosts"
         echo "$DOCKER_GATEWAY $MW_SITE_HOST # MW_SITE_HOST" >> ~/hosts.new
     fi
-fi
+done <<< "$SITE_URLS"
 cp -f ~/hosts.new /etc/hosts
