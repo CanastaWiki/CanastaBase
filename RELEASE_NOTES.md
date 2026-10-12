@@ -37,3 +37,4 @@ CanastaBase version history:
 - 1.3.22 - September 28, 2026 - No PHP in web-writable dirs (#239); `exec` logging (#240); code and `config/` read-only to web user (#242)
 - 1.3.23 - October 2, 2026 - Upgrade to MediaWiki 1.43.10 (#246); Debian security package refresh (#229)
 - 1.3.24 - October 5, 2026 - Upgrade to MediaWiki 1.43.11 (#251); Debian security package refresh (#249)
+- 1.3.25 - October 12, 2026 - Per-host `/sitemap.xml` index (#275); per-wiki farm startup settings (#261); persistent update fingerprints (#271); startup update continuing past failures (#273), running once and honoring `MW_AUTOUPDATE=false` (#280), skipping uninstalled wikis (#281); stale `robots.txt`, sitemap and farm pages in Varnish (#279); Debian security package refresh (#256)
