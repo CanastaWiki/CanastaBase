@@ -1,5 +1,5 @@
-"""The update.php stamps must live on the config bind mount so they survive
-container recreation."""
+"""The update.php fingerprints must live on the config bind mount so they
+survive container recreation."""
 
 import os
 import subprocess
@@ -12,7 +12,7 @@ RMS_SCRIPT = os.path.join(
 )
 
 
-def _run_twice(tmp_path, stamp):
+def _run_twice(tmp_path, fingerprint):
     mw_volume = tmp_path / "mediawiki"
     (mw_volume / "config").mkdir(parents=True)
     script_file = tmp_path / "update.php"
@@ -24,12 +24,12 @@ def _run_twice(tmp_path, stamp):
         . %(rms)s
         waitdatabase() { return 0; }
         runuser() { echo "RAN"; }
-        run_maintenance_script_if_needed maintenance_update_alpha "%(stamp)s" %(script)s
-        run_maintenance_script_if_needed maintenance_update_alpha "%(stamp)s" %(script)s
+        run_maintenance_script_if_needed maintenance_update_alpha "%(fingerprint)s" %(script)s
+        run_maintenance_script_if_needed maintenance_update_alpha "%(fingerprint)s" %(script)s
     """) % {
         "mw_volume": mw_volume,
         "rms": RMS_SCRIPT,
-        "stamp": stamp,
+        "fingerprint": fingerprint,
         "script": script_file,
     }
     result = subprocess.run(
@@ -38,15 +38,15 @@ def _run_twice(tmp_path, stamp):
     return result, mw_volume
 
 
-def test_stamp_written_under_config_persistent(tmp_path):
+def test_fingerprint_written_under_config_persistent(tmp_path):
     result, mw_volume = _run_twice(tmp_path, "v-c-u-hash")
     assert result.returncode == 0, result.stderr
-    stamp_file = mw_volume / "config" / "persistent" / "maintenance_update_alpha.info"
-    assert stamp_file.read_text() == "v-c-u-hash\n"
+    fingerprint_file = mw_volume / "config" / "persistent" / "maintenance_update_alpha.info"
+    assert fingerprint_file.read_text() == "v-c-u-hash\n"
     assert not (mw_volume / "maintenance_update_alpha.info").exists()
 
 
-def test_matching_stamp_skips_second_run(tmp_path):
+def test_matching_fingerprint_skips_second_run(tmp_path):
     result, _ = _run_twice(tmp_path, "v-c-u-hash")
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("RAN") == 1

@@ -91,9 +91,9 @@ waitdatabase() {
 }
 
 run_maintenance_script_if_needed () {
-    local stamp_file="$MW_VOLUME/config/persistent/$1.info"
-    if [ -f "$stamp_file" ]; then
-        update_info="$(cat "$stamp_file" 2>/dev/null)"
+    local fingerprint_file="$MW_VOLUME/config/persistent/$1.info"
+    if [ -f "$fingerprint_file" ]; then
+        update_info="$(cat "$fingerprint_file" 2>/dev/null)"
     else
         update_info=""
     fi
@@ -120,8 +120,8 @@ run_maintenance_script_if_needed () {
         done
 
         echo >&2 "Successful updated: $2"
-        mkdir -p "$(dirname "$stamp_file")"
-        echo "$2" > "$stamp_file"
+        mkdir -p "$(dirname "$fingerprint_file")"
+        echo "$2" > "$fingerprint_file"
     else
         echo >&2 "$1 is up to date: $2."
     fi
