@@ -196,7 +196,7 @@ if ( $cliDefaultToFirstWiki && $wikiID === null ) {
 // Check if the path is the wiki directory route
 if ( $path === 'wikis' && $wikiID === null ) {
 	if ( getenv( 'CANASTA_ENABLE_WIKI_DIRECTORY' ) === 'true' ) {
-		header( 'Cache-Control: no-cache' );
+		header( 'Cache-Control: no-cache, max-age=0' );
 		header( 'Content-Type: text/html; charset=utf-8' );
 		$directoryOnly = true;
 		require __DIR__ . '/CanastaFarm404.php';
@@ -211,7 +211,7 @@ if ( $key === null ) {
 	$wikiID = $urlToWikiIdMap[$key];
 } elseif ( $wikiID === null ) {
 	HttpStatus::header( 404 );
-	header( 'Cache-Control: no-cache' );
+	header( 'Cache-Control: no-cache, max-age=0' );
 	header( 'Content-Type: text/html; charset=utf-8' );
 	$directoryOnly = false;
 	require __DIR__ . '/CanastaFarm404.php';

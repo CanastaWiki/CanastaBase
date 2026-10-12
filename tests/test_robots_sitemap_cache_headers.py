@@ -101,3 +101,19 @@ def test_sitemap_is_not_cached(server):
 def test_missing_sitemap_is_not_cached(server):
     base, _ = server
     assert _fetch(base + "/sitemap.php") == (404, "no-cache, max-age=0")
+
+
+def test_no_bare_no_cache_headers():
+    """Canasta's Varnish caches a response whose Cache-Control is a bare
+    `no-cache`, so every page the image generates outside MediaWiki must
+    also send max-age=0."""
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parent.parent / "_sources"
+    offenders = []
+    for path in root.rglob("*.php"):
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            m = re.search(r"Cache-Control:\s*([^'\"]*)", line)
+            if m and "no-cache" in m.group(1) and "max-age=0" not in m.group(1):
+                offenders.append(f"{path.relative_to(root)}:{n}")
+    assert not offenders, offenders
