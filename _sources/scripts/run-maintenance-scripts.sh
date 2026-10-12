@@ -225,14 +225,11 @@ fi
 # - Legacy: config/LocalSettings.php or config/CommonSettings.php
 echo "Checking for configuration..."
 if [ -e "$MW_VOLUME/config/wikis.yaml" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ -e "$MW_VOLUME/config/CommonSettings.php" ]; then
+  # run-all.sh has already run the auto-update before starting this script.
   if isTrue "$MW_AUTOUPDATE"; then
       waitdatabase
-      rm "$WWW_ROOT/.maintenance"
-      run_autoupdate
-  else
-      rm "$WWW_ROOT/.maintenance"
-      echo "Auto update script is disabled, MW_AUTOUPDATE is $MW_AUTOUPDATE";
   fi
+  rm "$WWW_ROOT/.maintenance"
   run_maintenance_scripts
 else
     rm "$WWW_ROOT/.maintenance"

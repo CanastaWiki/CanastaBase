@@ -201,7 +201,11 @@ if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ 
 
   # Run auto-update (LocalSettings.php/CommonSettings.php checks are for backward compatibility)
   . /run-maintenance-scripts.sh
-  run_autoupdate
+  if isTrue "$MW_AUTOUPDATE"; then
+    run_autoupdate
+  else
+    echo "Auto update script is disabled, MW_AUTOUPDATE is $MW_AUTOUPDATE"
+  fi
 
   # Notify if SMW was newly set up and needs rebuildData.
   # setupStore.php (run by update.php hooks) creates tables but does not
