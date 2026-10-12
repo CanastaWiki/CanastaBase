@@ -4,7 +4,6 @@ Allow: /w/resources
 Allow: /w/skins
 Allow: /w/extensions
 Allow: /w/images
-Allow: /w/sitemap
 Disallow: /w/
 Disallow: /Special:
 Disallow: /Special%3A
