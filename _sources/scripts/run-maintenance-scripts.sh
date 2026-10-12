@@ -90,6 +90,27 @@ waitdatabase() {
     fi
 }
 
+# Succeeds only when the server reports that the wiki's database does not
+# exist. Any other outcome, including a failed lookup or connection, lets the
+# update run.
+wiki_database_missing() {
+    local db_name db_host db_port output status
+    [ "$WG_DB_TYPE" = "mysql" ] || return 1
+    db_name=$(php /getMediawikiSettings.php --variable=wgDBname --wiki="$1") || return 1
+    [ -n "$db_name" ] || return 1
+    db_host="$WG_DB_SERVER"
+    db_port="${MYSQL_PORT:-3306}"
+    if [[ "$db_host" == *:* ]]; then
+        db_port="${db_host##*:}"
+        db_host="${db_host%:*}"
+    fi
+    hide_secrets
+    output=$(mysql -h "$db_host" -P "$db_port" -u"$WG_DB_USER" -p"$WG_DB_PASSWORD" -e 'SELECT 1' "$db_name" 2>&1)
+    status=$?
+    show_secrets
+    [ "$status" -ne 0 ] && [[ "$output" == *"ERROR 1049"* ]]
+}
+
 run_maintenance_script_if_needed () {
     local fingerprint_file="$MW_VOLUME/config/persistent/$1.info"
     if [ -f "$fingerprint_file" ]; then
@@ -102,6 +123,11 @@ run_maintenance_script_if_needed () {
         waitdatabase || {
             return $?
         }
+
+        if [ -n "$update_wiki_id" ] && wiki_database_missing "$update_wiki_id"; then
+            echo >&2 "$update_wiki_id: database not installed yet, skipping update"
+            return 0
+        fi
 
         i=3
         while [ -n "${!i}" ]
@@ -134,6 +160,7 @@ run_autoupdate () {
     wiki_ids=$(get_wiki_ids)
 
     rc=0
+    update_wiki_id=
     if [ -n "$wiki_ids" ]; then
         # Wiki farm: run update.php for each wiki
         echo >&2 "Wiki farm detected, running maintenance for all wikis..."
@@ -141,6 +168,7 @@ run_autoupdate () {
             if [ -n "$wiki_id" ]; then
                 echo >&2 "Running maintenance/update.php for wiki: $wiki_id"
                 wiki_version_hash=$(php /getMediawikiSettings.php --versions --format=md5 --wiki="$wiki_id")
+                update_wiki_id=$wiki_id
                 run_maintenance_script_if_needed "maintenance_update_$wiki_id" "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$wiki_version_hash" \
                     "maintenance/update.php --quick --wiki=$wiki_id" || {
                         rc=$?
@@ -148,6 +176,7 @@ run_autoupdate () {
                     }
             fi
         done <<< "$wiki_ids"
+        update_wiki_id=
     else
         # Single wiki (legacy mode)
         run_maintenance_script_if_needed 'maintenance_update' "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
