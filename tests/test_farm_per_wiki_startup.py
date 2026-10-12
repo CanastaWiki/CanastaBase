@@ -46,7 +46,7 @@ class TestAutoupdateHashPerWiki:
             %(php)s
             . %(rms)s
             get_wiki_ids() { printf '%%s' "%(wiki_ids)s"; }
-            run_maintenance_script_if_needed() { echo "STAMP $1 $2"; }
+            run_maintenance_script_if_needed() { echo "FINGERPRINT $1 $2"; }
             run_autoupdate
         """) % {
             "mw_volume": mw_volume,
@@ -56,16 +56,16 @@ class TestAutoupdateHashPerWiki:
         }
         return _bash(script, tmp_path)
 
-    def test_farm_stamps_use_each_wikis_own_hash(self, tmp_path):
+    def test_farm_fingerprints_use_each_wikis_own_hash(self, tmp_path):
         result = self._run(tmp_path, "alpha\nbeta\n")
         assert result.returncode == 0, result.stderr
-        assert "STAMP maintenance_update_alpha v-c-u-hash-alpha" in result.stdout
-        assert "STAMP maintenance_update_beta v-c-u-hash-beta" in result.stdout
+        assert "FINGERPRINT maintenance_update_alpha v-c-u-hash-alpha" in result.stdout
+        assert "FINGERPRINT maintenance_update_beta v-c-u-hash-beta" in result.stdout
 
     def test_single_wiki_uses_global_hash(self, tmp_path):
         result = self._run(tmp_path, "")
         assert result.returncode == 0, result.stderr
-        assert "STAMP maintenance_update v-c-u-hash-default" in result.stdout
+        assert "FINGERPRINT maintenance_update v-c-u-hash-default" in result.stdout
 
 
 class TestDockerGatewayMapsEveryWiki:
