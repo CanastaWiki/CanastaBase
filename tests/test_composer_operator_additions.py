@@ -361,7 +361,7 @@ def test_unparsable_operator_file_leaves_vendor_alone(inst, text):
 
     inst.config.write_text(text)
     result, ran = inst.start()
-    assert result.returncode != 0
+    assert result.returncode == 3
     assert not ran, "composer must not run without the operator's content"
     assert (inst.mw_home / "composer.local.json").read_text() == effective
     assert (inst.mw_home / ".composer-deps-hash").read_text() == saved_hash
@@ -420,3 +420,25 @@ def test_build_hash_kept_on_success_and_skip(inst):
     result, ran = inst.start()
     assert not ran
     assert hash_file.read_text() == baseline
+
+
+def test_exit_code_passes_through(inst):
+    _write_json(inst.config, {"require": {"some/package": "^1.0"}})
+    result, ran = inst.start(STUB_EXIT="2")
+    assert ran
+    assert result.returncode == 2
+
+    installed = json.dumps({"packages": [{"name": "foo/lib"}]})
+    result, ran = inst.start(STUB_INSTALLED=installed)
+    assert ran
+    assert result.returncode == 1, "verify-composer-deps.php exits 1"
+
+    complete = json.dumps({"packages": [
+        {"name": n} for n in ("foo/lib", "bar/lib", "some/package")]})
+    result, ran = inst.start(STUB_INSTALLED=complete)
+    assert ran
+    assert result.returncode == 0
+
+    result, ran = inst.start()
+    assert not ran
+    assert result.returncode == 0

@@ -51,7 +51,7 @@ if [ "$status" -ne 0 ]; then
   echo "$reason" >&2
   { echo "$reason"; echo; cat "$COMPOSER_LOCAL_ERRORS"; } | write_failed "$status"
   rm -f "$COMPOSER_LOCAL_ERRORS"
-  exit 1
+  exit "$status"
 fi
 rm -f "$COMPOSER_LOCAL_ERRORS"
 
@@ -98,3 +98,4 @@ else
   } | write_failed "$status"
 fi
 rm -f "$COMPOSER_OUTPUT"
+exit "$status"
