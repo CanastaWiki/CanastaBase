@@ -10,8 +10,9 @@
  * Usage: php verify-composer-deps.php <MW_HOME>
  *
  * Prints a line per missing package and exits non-zero if any are missing, so
- * it can gate the image build (see extensions-skins.php). Exits 0 when the
- * vendor/ is complete or there is nothing to check.
+ * it can gate the image build (see extensions-skins.php) and the startup
+ * update (see update-composer-deps.sh). Exits 0 when the vendor/ is complete
+ * or there is nothing to check.
  */
 
 $mwHome = $argv[1] ?? getenv('MW_HOME');

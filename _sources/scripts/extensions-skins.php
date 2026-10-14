@@ -160,26 +160,32 @@ foreach (['extensions' => 'canasta-extensions', 'skins' => 'canasta-skins'] as $
     }
 }
 
-// Create composer.local.json with specific entries for bundled extensions/skins
-// that have composer dependencies. We use specific entries rather than wildcards
-// to avoid broken composer.json files in extensions that don't need composer.
-// Users who add extensions with composer dependencies should manually add
-// entries to config/composer.local.json.
-$allIncludes = $composerIncludes;
-$composerLocal = [
+// Save the bundled extensions/skins that have composer dependencies as the
+// image's include list. We use specific entries rather than wildcards to
+// avoid broken composer.json files in extensions that don't need composer.
+// The instance's config/composer.local.json holds only the operator's
+// additions; composer-local.php merges them over this list into
+// composer.local.json, here and at startup.
+$composerBundled = [
     'extra' => [
         'merge-plugin' => [
-            'include' => $allIncludes
+            'include' => $composerIncludes
         ]
     ]
 ];
-$composerLocalJson = json_encode($composerLocal, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
-file_put_contents("$MW_HOME/composer.local.json", $composerLocalJson);
-
-// Also save to $MW_ORIGIN_FILES/config/ so rsync populates user's config/ on
-// first run.
-exec("mkdir -p $MW_ORIGIN_FILES/config");
-file_put_contents("$MW_ORIGIN_FILES/config/composer.local.json", $composerLocalJson);
+file_put_contents("$MW_HOME/composer.bundled.json",
+    json_encode($composerBundled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+$composerLocalCmd = "php " . escapeshellarg("$MW_HOME/maintenance/composer-local.php")
+    . " " . escapeshellarg($MW_HOME)
+    . " " . escapeshellarg("$MW_HOME/composer.bundled.json")
+    . " /nonexistent"
+    . " " . escapeshellarg("$MW_HOME/composer.local.json");
+exec($composerLocalCmd, $composerLocalOutput, $composerLocalReturnCode);
+if ($composerLocalReturnCode !== 0) {
+    fwrite(STDERR, "ERROR: composer-local.php failed (exit $composerLocalReturnCode). Aborting the build.\n");
+    exit($composerLocalReturnCode);
+}
+$composerDepsHash = trim($composerLocalOutput[0] ?? '');
 
 // Run unified composer update at the MediaWiki root.
 // Fail the build on a non-zero exit instead of shipping an image whose
@@ -209,25 +215,14 @@ if (is_file($verifyScript)) {
     }
 }
 
-// Save a hash of composer.local.json + all referenced extension/skin
-// composer.json files so run-all.sh can detect changes at runtime.
-$hashFiles = ["$MW_HOME/composer.local.json"];
-foreach ($allIncludes as $pattern) {
-    foreach (glob("$MW_HOME/$pattern") as $f) {
-        $hashFiles[] = $f;
-    }
-}
-sort($hashFiles);
-$combinedHash = '';
-foreach ($hashFiles as $f) {
-    $combinedHash .= md5_file($f);
-}
+// Record the operator-content hash vendor/ was built for, so the startup
+// update runs composer only for the operator's additions.
 // The hash file lives at $MW_HOME/.composer-deps-hash, INSIDE the
 // container (not on the bind-mounted $MW_VOLUME). vendor/ is also
 // intra-container, so the hash and the deps it describes share the
 // same lifetime: when the container is recreated, both go away
-// together and run-all.sh correctly re-runs composer. See #141.
-file_put_contents("$MW_HOME/.composer-deps-hash", md5($combinedHash) . "\n");
+// together and update-composer-deps.sh correctly re-runs composer. See #141.
+file_put_contents("$MW_HOME/.composer-deps-hash", $composerDepsHash . "\n");
 
 /**
  * Recursive function to allow for loading a whole chain of YAML files (if
