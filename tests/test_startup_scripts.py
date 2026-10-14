@@ -177,32 +177,30 @@ class TestComposerHashFileLocation:
     must be inside the container ($MW_HOME), not on the bind mount
     ($MW_VOLUME/config/persistent)."""
 
-    def test_run_all_writes_hash_inside_container(self):
+    def test_startup_writes_hash_inside_container(self):
         """The hash file path must be under $MW_HOME, not $MW_VOLUME."""
         with open(os.path.join(
-            REPO_ROOT, "_sources", "scripts", "run-all.sh",
+            REPO_ROOT, "_sources", "scripts", "update-composer-deps.sh",
         )) as f:
             content = f.read()
 
-        # The composer block defines a single source-of-truth variable
+        # The composer script defines a single source-of-truth variable
         # for the hash file path. It must point at $MW_HOME, not at
         # the bind-mounted $MW_VOLUME/config/persistent location.
         assert 'COMPOSER_HASH_FILE="$MW_HOME/.composer-deps-hash"' in content, (
             "expected COMPOSER_HASH_FILE to be under $MW_HOME (intra-container)"
         )
-
-        # Belt and suspenders: confirm the old bind-mount path is not
-        # referenced anywhere in the composer block.
-        composer_block_start = content.find("# Unified composer autoloader")
-        composer_block_end = content.find("/update-docker-gateway.sh")
-        composer_block = content[composer_block_start:composer_block_end]
-        assert ".composer-deps-hash" in composer_block, (
-            "composer block should still reference the hash file"
-        )
-        assert "$MW_VOLUME/config/persistent/.composer-deps-hash" not in composer_block, (
-            "composer block must not write to the bind-mounted path "
+        assert "$MW_VOLUME/config/persistent/.composer-deps-hash" not in content, (
+            "composer script must not write to the bind-mounted path "
             "anymore (#141)"
         )
+
+    def test_run_all_runs_composer_update(self):
+        with open(os.path.join(
+            REPO_ROOT, "_sources", "scripts", "run-all.sh",
+        )) as f:
+            content = f.read()
+        assert re.search(r"^/update-composer-deps\.sh$", content, re.MULTILINE)
 
     def test_extensions_skins_writes_baseline_inside_container(self):
         """The build-time baseline written by extensions-skins.php must
