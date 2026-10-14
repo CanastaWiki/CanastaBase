@@ -2,7 +2,7 @@
 
 # Unified composer autoloader
 #
-# The image builds vendor/ from $MW_HOME/composer.bundled.json, the merge-plugin
+# The image builds vendor/ from $MW_HOME/composer.canasta.json, the merge-plugin
 # includes of the bundled extensions and skins that have Composer
 # dependencies. config/composer.local.json holds only the operator's
 # additions: require, repositories, includes for user extensions and skins,
@@ -24,7 +24,7 @@
 # the CLI to report; the file is removed once vendor/ matches again.
 
 COMPOSER_LOCAL="$MW_VOLUME/config/composer.local.json"
-COMPOSER_BUNDLED="$MW_HOME/composer.bundled.json"
+COMPOSER_CANASTA="$MW_HOME/composer.canasta.json"
 COMPOSER_HASH_FILE="$MW_HOME/.composer-deps-hash"
 COMPOSER_FAILED="$MW_VOLUME/config/persistent/composer-update.failed"
 
@@ -38,7 +38,7 @@ write_failed() {
 
 COMPOSER_LOCAL_ERRORS=$(mktemp)
 CURRENT_HASH=$(php "$MW_HOME/maintenance/composer-local.php" \
-    "$MW_HOME" "$COMPOSER_BUNDLED" "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json" \
+    "$MW_HOME" "$COMPOSER_CANASTA" "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json" \
     2>"$COMPOSER_LOCAL_ERRORS")
 status=$?
 cat "$COMPOSER_LOCAL_ERRORS" >&2

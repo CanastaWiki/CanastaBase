@@ -4,9 +4,9 @@
  * Write MediaWiki's root composer.local.json for this container and print a
  * hash of the operator's Composer content.
  *
- * Usage: php composer-local.php <MW_HOME> <bundled.json> <operator.json> <output.json>
+ * Usage: php composer-local.php <MW_HOME> <canasta.json> <operator.json> <output.json>
  *
- * <bundled.json> is the image's list, generated at build time from the bundled
+ * <canasta.json> is the image's list, generated at build time from the bundled
  * extensions and skins that need Composer. <operator.json> is the instance's
  * config/composer.local.json; it may be missing. The output starts from the
  * bundled file, minus extra.canasta.exclude-bundled. The operator's require
@@ -28,7 +28,7 @@
  */
 
 if ($argc !== 5) {
-    fwrite(STDERR, "Usage: php composer-local.php <MW_HOME> <bundled.json> <operator.json> <output.json>\n");
+    fwrite(STDERR, "Usage: php composer-local.php <MW_HOME> <canasta.json> <operator.json> <output.json>\n");
     exit(2);
 }
 [, $mwHome, $bundledPath, $operatorPath, $outputPath] = $argv;

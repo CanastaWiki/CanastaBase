@@ -1,5 +1,5 @@
 """Tests for the composer include handling: the image keeps the bundled list
-(composer.bundled.json), config/composer.local.json holds only the operator's
+(composer.canasta.json), config/composer.local.json holds only the operator's
 additions, and update-composer-deps.sh runs composer only when those change.
 
 The build runs the real extensions-skins.php (with yaml_parse stubbed by
@@ -151,7 +151,7 @@ def inst(tmp_path):
 
 def test_build_keeps_list_in_image_and_does_not_seed_config(inst):
     assert not (inst.origin / "config" / "composer.local.json").exists()
-    bundled = _read_json(inst.mw_home / "composer.bundled.json")
+    bundled = _read_json(inst.mw_home / "composer.canasta.json")
     assert bundled["extra"]["merge-plugin"]["include"] == IMAGE_INCLUDES
     assert inst.includes() == IMAGE_INCLUDES
 

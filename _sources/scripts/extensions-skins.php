@@ -173,11 +173,11 @@ $composerBundled = [
         ]
     ]
 ];
-file_put_contents("$MW_HOME/composer.bundled.json",
+file_put_contents("$MW_HOME/composer.canasta.json",
     json_encode($composerBundled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 $composerLocalCmd = "php " . escapeshellarg("$MW_HOME/maintenance/composer-local.php")
     . " " . escapeshellarg($MW_HOME)
-    . " " . escapeshellarg("$MW_HOME/composer.bundled.json")
+    . " " . escapeshellarg("$MW_HOME/composer.canasta.json")
     . " /nonexistent"
     . " " . escapeshellarg("$MW_HOME/composer.local.json");
 exec($composerLocalCmd, $composerLocalOutput, $composerLocalReturnCode);
