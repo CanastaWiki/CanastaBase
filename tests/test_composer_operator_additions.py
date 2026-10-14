@@ -381,3 +381,42 @@ def test_run_all_continues_after_composer_failure():
         content = f.read()
     assert not re.search(r"^\s*set\s+-[a-z]*e", content, re.MULTILINE)
     assert re.search(r"^/update-composer-deps\.sh$", content, re.MULTILINE)
+
+
+@pytest.mark.parametrize("failure", [
+    {"STUB_EXIT": "2"},
+    {"STUB_INSTALLED": json.dumps({"packages": [{"name": "foo/lib"}]})},
+], ids=["composer", "verify"])
+def test_failure_then_revert_reruns_composer(inst, failure):
+    _write_json(inst.config, {"require": {"some/package": "^1.0"}})
+    result, ran = inst.start()
+    assert ran
+    hash_file = inst.mw_home / ".composer-deps-hash"
+    saved_hash = hash_file.read_text()
+
+    # An include is added, the update fails, and the include is reverted.
+    inst.user_extension("Mine", {"require": {"mine/lib": "^2"}})
+    _write_json(inst.config, {
+        "require": {"some/package": "^1.0"},
+        "extra": {"merge-plugin": {"include": ["extensions/Mine/composer.json"]}},
+    })
+    result, ran = inst.start(**failure)
+    assert ran
+    assert inst.failed.exists()
+    assert not hash_file.exists()
+
+    _write_json(inst.config, {"require": {"some/package": "^1.0"}})
+    complete = json.dumps({"packages": [
+        {"name": n} for n in ("foo/lib", "bar/lib", "some/package")]})
+    result, ran = inst.start(STUB_INSTALLED=complete)
+    assert ran, "vendor/ may be half-updated, so composer must rerun"
+    assert not inst.failed.exists()
+    assert hash_file.read_text() == saved_hash
+
+
+def test_build_hash_kept_on_success_and_skip(inst):
+    hash_file = inst.mw_home / ".composer-deps-hash"
+    baseline = hash_file.read_text()
+    result, ran = inst.start()
+    assert not ran
+    assert hash_file.read_text() == baseline

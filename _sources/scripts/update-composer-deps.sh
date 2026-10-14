@@ -76,13 +76,15 @@ if [ "$status" -eq 0 ] && [ -f "$MW_HOME/maintenance/verify-composer-deps.php" ]
   status=${PIPESTATUS[0]}
 fi
 
-# Only record the new hash if the update succeeded; otherwise the next start
-# would skip composer and boot with a broken/stale vendor tree.
+# Only record the new hash if the update succeeded. A failed update may have
+# changed vendor/ already, so drop the saved hash too: otherwise reverting to
+# the previous content would match it and skip composer.
 if [ "$status" -eq 0 ]; then
   echo "$CURRENT_HASH" > "$COMPOSER_HASH_FILE"
   rm -f "$COMPOSER_FAILED"
 else
-  echo "composer update failed; leaving the dependency hash unchanged so it retries on next start." >&2
+  rm -f "$COMPOSER_HASH_FILE"
+  echo "composer update failed; removing the dependency hash so it retries on next start." >&2
   {
     echo "Includes:"
     php -r '
