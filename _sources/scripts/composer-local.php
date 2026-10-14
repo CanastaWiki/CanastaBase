@@ -35,7 +35,7 @@ if ($argc !== 5) {
 $mwHome = rtrim($mwHome, '/');
 
 $bundled = readJson($bundledPath) ?? [];
-$operator = readJson($operatorPath) ?? [];
+$operator = readJson($operatorPath, 3) ?? [];
 
 $bundledIncludes = stringList($bundled['extra']['merge-plugin']['include'] ?? []);
 $operatorIncludes = stringList($operator['extra']['merge-plugin']['include'] ?? []);
@@ -143,16 +143,24 @@ function canonical($value) {
     return $value;
 }
 
-function readJson(string $path): ?array {
+/**
+ * A file that exists but is not a JSON object exits with $errorCode, before
+ * the output is written: treating it as empty would resolve without the
+ * operator's packages and remove them from vendor/.
+ */
+function readJson(string $path, int $errorCode = 1): ?array {
     if (!is_file($path)) {
         return null;
     }
-    $data = json_decode(file_get_contents($path), true);
-    if (!is_array($data)) {
-        fwrite(STDERR, "WARNING: $path is not a valid JSON object; ignoring it.\n");
-        return null;
+    $text = file_get_contents($path);
+    $object = $text === false ? null : json_decode($text);
+    if (!is_object($object)) {
+        $error = $text === false ? 'cannot be read'
+            : (json_last_error() !== JSON_ERROR_NONE ? json_last_error_msg() : 'not a JSON object');
+        fwrite(STDERR, "ERROR: $path: $error\n");
+        exit($errorCode);
     }
-    return $data;
+    return json_decode($text, true);
 }
 
 function stringList($value): array {

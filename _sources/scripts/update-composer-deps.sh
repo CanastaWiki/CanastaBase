@@ -28,11 +28,32 @@ COMPOSER_BUNDLED="$MW_HOME/composer.bundled.json"
 COMPOSER_HASH_FILE="$MW_HOME/.composer-deps-hash"
 COMPOSER_FAILED="$MW_VOLUME/config/persistent/composer-update.failed"
 
-if ! CURRENT_HASH=$(php "$MW_HOME/maintenance/composer-local.php" \
-    "$MW_HOME" "$COMPOSER_BUNDLED" "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json"); then
-  echo "Could not generate composer.local.json; skipping the composer update." >&2
+write_failed() {
+  mkdir -p "$(dirname "$COMPOSER_FAILED")"
+  {
+    echo "Composer update failed at $(date -u +%Y-%m-%dT%H:%M:%SZ) (exit $1)."
+    cat
+  } > "$COMPOSER_FAILED"
+}
+
+COMPOSER_LOCAL_ERRORS=$(mktemp)
+CURRENT_HASH=$(php "$MW_HOME/maintenance/composer-local.php" \
+    "$MW_HOME" "$COMPOSER_BUNDLED" "$COMPOSER_LOCAL" "$MW_HOME/composer.local.json" \
+    2>"$COMPOSER_LOCAL_ERRORS")
+status=$?
+cat "$COMPOSER_LOCAL_ERRORS" >&2
+if [ "$status" -ne 0 ]; then
+  if [ "$status" -eq 3 ]; then
+    reason="config/composer.local.json could not be parsed; composer was not run."
+  else
+    reason="composer.local.json could not be generated; composer was not run."
+  fi
+  echo "$reason" >&2
+  { echo "$reason"; echo; cat "$COMPOSER_LOCAL_ERRORS"; } | write_failed "$status"
+  rm -f "$COMPOSER_LOCAL_ERRORS"
   exit 1
 fi
+rm -f "$COMPOSER_LOCAL_ERRORS"
 
 SAVED_HASH=""
 if [ -f "$COMPOSER_HASH_FILE" ]; then
@@ -62,9 +83,7 @@ if [ "$status" -eq 0 ]; then
   rm -f "$COMPOSER_FAILED"
 else
   echo "composer update failed; leaving the dependency hash unchanged so it retries on next start." >&2
-  mkdir -p "$(dirname "$COMPOSER_FAILED")"
   {
-    echo "Composer update failed at $(date -u +%Y-%m-%dT%H:%M:%SZ) (exit $status)."
     echo "Includes:"
     php -r '
       $data = json_decode(file_get_contents($argv[1]), true);
@@ -74,6 +93,6 @@ else
     ' "$MW_HOME/composer.local.json"
     echo
     tail -n 200 "$COMPOSER_OUTPUT"
-  } > "$COMPOSER_FAILED"
+  } | write_failed "$status"
 fi
 rm -f "$COMPOSER_OUTPUT"

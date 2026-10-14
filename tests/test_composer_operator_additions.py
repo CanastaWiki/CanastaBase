@@ -9,6 +9,7 @@ stub `composer` on PATH that logs its calls.
 """
 
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -345,3 +346,38 @@ def test_old_copy_with_empty_keys_is_no_operator_content(inst):
     assert not ran
     assert inst.effective() == {
         "extra": {"merge-plugin": {"include": IMAGE_INCLUDES}}}
+
+
+@pytest.mark.parametrize("text", [
+    '{"require": {"some/package": "^1.0"},}',
+    '[{"require": {"some/package": "^1.0"}}]',
+])
+def test_unparsable_operator_file_leaves_vendor_alone(inst, text):
+    _write_json(inst.config, {"require": {"some/package": "^1.0"}})
+    result, ran = inst.start()
+    assert ran
+    effective = (inst.mw_home / "composer.local.json").read_text()
+    saved_hash = (inst.mw_home / ".composer-deps-hash").read_text()
+
+    inst.config.write_text(text)
+    result, ran = inst.start()
+    assert result.returncode != 0
+    assert not ran, "composer must not run without the operator's content"
+    assert (inst.mw_home / "composer.local.json").read_text() == effective
+    assert (inst.mw_home / ".composer-deps-hash").read_text() == saved_hash
+    failed = inst.failed.read_text()
+    assert "(exit 3)" in failed
+    assert "config/composer.local.json could not be parsed" in failed
+    assert str(inst.config) in failed
+
+    _write_json(inst.config, {"require": {"some/package": "^1.0"}})
+    result, ran = inst.start()
+    assert not ran
+    assert not inst.failed.exists()
+
+
+def test_run_all_continues_after_composer_failure():
+    with open(os.path.join(SCRIPTS, "run-all.sh")) as f:
+        content = f.read()
+    assert not re.search(r"^\s*set\s+-[a-z]*e", content, re.MULTILINE)
+    assert re.search(r"^/update-composer-deps\.sh$", content, re.MULTILINE)
