@@ -270,4 +270,8 @@ WORKDIR $MW_HOME
 HEALTHCHECK --interval=1m --timeout=10s --start-period=5m \
 	CMD wget -q --method=HEAD 127.0.0.1/server-status
 
+# SIGWINCH is Apache's graceful stop: in-flight requests finish before it
+# exits, where SIGTERM would cut them off.
+STOPSIGNAL SIGWINCH
+
 CMD ["/run-all.sh"]
