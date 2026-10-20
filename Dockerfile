@@ -118,10 +118,13 @@ RUN set -x; \
 FROM base AS source
 
 # MediaWiki core
+# The submodules come from Gerrit, which refuses requests carrying git's
+# default user agent under Wikimedia's User-Agent policy.
 # cd is used within a multi-command && chain
 # hadolint ignore=DL3003
 RUN set -x; \
-	git clone --depth 1 -b "$MW_CORE_VERSION" https://github.com/wikimedia/mediawiki "$MW_HOME" \
+	export GIT_HTTP_USER_AGENT="CanastaBase (https://github.com/CanastaWiki/CanastaBase)" \
+	&& git clone --depth 1 -b "$MW_CORE_VERSION" https://github.com/wikimedia/mediawiki "$MW_HOME" \
 	&& cd "$MW_HOME" \
 	&& git submodule update --init --recursive
 
