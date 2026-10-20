@@ -372,3 +372,23 @@ class TestMonitorDirectories:
             capture_output=True, text=True,
         )
         assert "HAS:handle_dir_events" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Apache receives the container's stop signal
+# ---------------------------------------------------------------------------
+
+
+def test_run_all_execs_apache2_directly():
+    """apachectl runs apache2 as a child of its shell, which would stay
+    PID 1 and swallow the stop signal."""
+    with open(os.path.join(REPO_ROOT, "_sources", "scripts", "run-all.sh")) as f:
+        lines = [l.strip() for l in f if l.strip() and not l.lstrip().startswith("#")]
+    assert lines[-1] == "exec /usr/sbin/apache2 -DFOREGROUND"
+    assert ". /etc/apache2/envvars" in lines
+
+
+def test_dockerfile_stop_signal_is_graceful():
+    with open(os.path.join(REPO_ROOT, "Dockerfile")) as f:
+        directives = [l.split() for l in f if l.startswith("STOPSIGNAL")]
+    assert directives == [["STOPSIGNAL", "SIGWINCH"]]

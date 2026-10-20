@@ -208,4 +208,9 @@ done
 # if it thinks it is already running.
 rm -rf /run/apache2/* /tmp/apache2*
 
-exec /usr/sbin/apachectl -DFOREGROUND
+# Exec apache2 itself rather than apachectl, whose shell would stay PID 1
+# and never pass the container's stop signal on to Apache.
+. /etc/apache2/envvars
+install -d "$APACHE_RUN_DIR"
+install -d -o "$APACHE_RUN_USER" "$APACHE_RUN_DIR/socks" "$APACHE_LOCK_DIR"
+exec /usr/sbin/apache2 -DFOREGROUND
