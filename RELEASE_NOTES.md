@@ -40,3 +40,4 @@ CanastaBase version history:
 - 1.3.25 - October 12, 2026 - Per-host `/sitemap.xml` index (#275); per-wiki farm startup settings (#261); persistent update fingerprints (#271); startup update continuing past failures (#273), running once and honoring `MW_AUTOUPDATE=false` (#280), skipping uninstalled wikis (#281); stale `robots.txt`, sitemap and farm pages in Varnish (#279); Debian security package refresh (#256)
 - 1.3.26 - October 14, 2026 - Bundled composer list moved into the image, `config/composer.local.json` holding operator additions only, failed startup composer updates recorded (#286)
 - 1.3.27 - October 21, 2026 - PHP 8.2.35 security update via Debian security package refresh (#293); graceful Apache stop (#290); Gerrit submodule user agent (#292)
+- 1.3.28 - October 25, 2026 - Maintenance scripts' `--wiki` server and path (#301); configurable sitemap URL path and identifier (#302); Debian security package refresh (#298)
