@@ -31,21 +31,22 @@ $original_url = getenv( 'ORIGINAL_URL' );
 $serverName = "";
 $path = "";
 
-// Track if we're in CLI mode without a specific wiki
-$cliDefaultToFirstWiki = false;
+// Without a request URL (maintenance scripts), the server name and path
+// come from the selected wiki's url in wikis.yaml instead
+$useWikiUrl = false;
 
 // Check if the original URL is defined
-if ( $original_url === false && !defined( 'MW_WIKI_NAME' ) ) {
-	// In CLI mode without specific wiki, we'll default to the first wiki
-	if ( PHP_SAPI === 'cli' ) {
-		$cliDefaultToFirstWiki = true;
+if ( $original_url === false ) {
+	// In CLI mode, use the wiki named by --wiki, or else the first wiki
+	if ( PHP_SAPI === 'cli' || defined( 'MW_WIKI_NAME' ) ) {
+		$useWikiUrl = true;
 	} else {
 		return;
 	}
 }
 
-// Parse the original URL (skip if we're defaulting to first wiki)
-if ( !$cliDefaultToFirstWiki ) {
+// Parse the original URL
+if ( !$useWikiUrl ) {
 	$urlComponents = parse_url( $original_url );
 
 	// Check if URL parsing was successful, else throw an exception
@@ -173,13 +174,17 @@ if ( empty( $path ) ) {
 // Retrieve the wikiID if available
 $wikiID = defined( 'MW_WIKI_NAME' ) ? MW_WIKI_NAME : null;
 
-// In CLI mode without specific wiki, default to the first wiki
-if ( $cliDefaultToFirstWiki && $wikiID === null ) {
-	$firstWiki = reset( $wikiConfigurations['wikis'] );
-	if ( $firstWiki !== false && isset( $firstWiki['id'] ) ) {
-		$wikiID = $firstWiki['id'];
-		// Parse the first wiki's URL to set serverName and path
-		$wikiUrl = $firstWiki['url'] ?? '';
+if ( $useWikiUrl ) {
+	// In CLI mode without specific wiki, default to the first wiki
+	if ( $wikiID === null ) {
+		$firstWiki = reset( $wikiConfigurations['wikis'] );
+		if ( $firstWiki !== false && isset( $firstWiki['id'] ) ) {
+			$wikiID = $firstWiki['id'];
+		}
+	}
+	// Parse the wiki's URL to set serverName and path
+	if ( $wikiID !== null && isset( $wikiIdToConfigMap[$wikiID] ) ) {
+		$wikiUrl = $wikiIdToConfigMap[$wikiID]['url'];
 		if ( strpos( $wikiUrl, '/' ) !== false ) {
 			// URL contains a path component (e.g., "example.com/wiki1")
 			$urlParts = explode( '/', $wikiUrl, 2 );
