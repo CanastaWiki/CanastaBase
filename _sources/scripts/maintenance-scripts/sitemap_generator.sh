@@ -18,23 +18,41 @@ if [ -z "$URL_SCHEME" ]; then
     URL_SCHEME="https://"
 fi
 
+# URL path of the sitemap files, relative to each wiki's URL
+URL_PATH="${MW_SITEMAP_URL_PATH:-/public_assets/sitemap}"
+
 # Generate sitemap for a single wiki
 generate_sitemap_for_wiki() {
     local wiki_id="$1"
-    local server="$2"
-    local log="$3"
+    local identifier="$2"
+    local server="$3"
+    local log="$4"
     local fspath="$MW_HOME/public_assets/$wiki_id/sitemap"
 
-    echo "Generating sitemap for wiki: $wiki_id (server: $server)" >> "$log"
-    php "$SCRIPT" \
+    echo "Generating sitemap for wiki: $wiki_id (server: $server, identifier: $identifier)" >> "$log"
+    if ! php "$SCRIPT" \
       --wiki="$wiki_id" \
       --fspath="$fspath" \
-      --urlpath="/public_assets/sitemap" \
+      --urlpath="$URL_PATH" \
       --compress yes \
       --server="$server" \
       --skip-redirects \
-      --identifier="$wiki_id" \
-      >> "$log" 2>&1
+      --identifier="$identifier" \
+      >> "$log" 2>&1; then
+        return
+    fi
+
+    # Remove the index and sitemaps of any earlier identifier, so the
+    # combined /sitemap.xml lists only the current one
+    local file name
+    for file in "$fspath"/sitemap-*; do
+        [ -e "$file" ] || continue
+        name="${file##*/}"
+        case "$name" in
+            "sitemap-index-$identifier.xml" | "sitemap-$identifier-NS_"*) ;;
+            sitemap-index-*.xml | sitemap-*-NS_*) rm -f "$file" ;;
+        esac
+    done
 }
 
 echo "Starting sitemap generator (in 30 seconds)..."
@@ -59,24 +77,31 @@ while true; do
         continue
     fi
 
-    # Regenerate sitemaps for wikis that already have sitemap files
+    # Regenerate sitemaps for wikis that already have sitemap files.
+    # The identifier, which names the sitemap files, defaults to the wiki
+    # ID; it becomes part of file names, so other characters are refused.
     wiki_data=$(php -r "
         \$config = yaml_parse_file('$WIKIS_YAML');
         if (\$config && isset(\$config['wikis'])) {
             foreach (\$config['wikis'] as \$wiki) {
                 \$id = \$wiki['id'] ?? '';
                 \$url = \$wiki['url'] ?? '';
+                \$identifier = (string)(\$wiki['sitemap_identifier'] ?? \$id);
                 \$dir = '$MW_HOME/public_assets/' . \$id . '/sitemap';
                 if (\$id !== '' && is_dir(\$dir) && count(glob(\$dir . '/*')) > 0) {
-                    echo \$id . \"\t\" . \$url . \"\n\";
+                    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]*\$/', \$identifier)) {
+                        fwrite(STDERR, 'Skipping wiki ' . \$id . ': sitemap_identifier may contain only letters, digits, underscores, hyphens and periods, and must start with a letter or digit.' . PHP_EOL);
+                        continue;
+                    }
+                    echo \$id . \"\t\" . \$identifier . \"\t\" . \$url . \"\n\";
                 }
             }
         }
-    ")
+    " 2>> "$logfileNow")
     if [ -z "$wiki_data" ]; then
         echo "No wikis have sitemaps, skipping." >> "$logfileNow"
     fi
-    while IFS=$'\t' read -r wiki_id wiki_url; do
+    while IFS=$'\t' read -r wiki_id identifier wiki_url; do
         if [ -z "$wiki_id" ]; then
             continue
         fi
@@ -86,7 +111,7 @@ while true; do
         else
             server="$MW_SITE_SERVER"
         fi
-        generate_sitemap_for_wiki "$wiki_id" "$server" "$logfileNow"
+        generate_sitemap_for_wiki "$wiki_id" "$identifier" "$server" "$logfileNow"
     done <<< "$wiki_data"
 
     echo "mwsitemapgen waits for $SLEEP_DAYS seconds..." >> "$logfileNow"
