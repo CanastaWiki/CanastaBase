@@ -166,10 +166,12 @@ jobs:
           echo "CANASTA_VERSION=$CANASTA_VERSION" >> "$GITHUB_OUTPUT"
           echo "IS_RELEASE=$IS_RELEASE" >> "$GITHUB_OUTPUT"
           echo "SHA_SHORT=$SHA_SHORT" >> $GITHUB_OUTPUT
-          # Passed to the build as APT_REFRESH so the apt-upgrade layer's cache key
-          # changes daily; otherwise a rebuild reuses a stale cached layer and never
-          # pulls newer Debian security packages.
           echo "BDATE=$BDATE" >> $GITHUB_OUTPUT
+          # Passed to the build as APT_REFRESH so the apt-upgrade layer's cache key
+          # changes daily and with each version; otherwise a rebuild reuses a stale
+          # cached layer, and a release built after the day's first build ships the
+          # packages that build cached.
+          echo "APT_REFRESH=$BDATE-$CANASTA_VERSION" >> $GITHUB_OUTPUT
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -195,7 +197,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            APT_REFRESH=${{ steps.generate.outputs.BDATE }}
+            APT_REFRESH=${{ steps.generate.outputs.APT_REFRESH }}
           tags: ${{ steps.generate.outputs.REGISTRY_TAGS }}
       -
         name: Build amd64 image locally for scanning
