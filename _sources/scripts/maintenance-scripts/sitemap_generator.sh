@@ -26,14 +26,15 @@ generate_sitemap_for_wiki() {
     local wiki_id="$1"
     local identifier="$2"
     local server="$3"
-    local log="$4"
+    local urlpath="$4"
+    local log="$5"
     local fspath="$MW_HOME/public_assets/$wiki_id/sitemap"
 
     echo "Generating sitemap for wiki: $wiki_id (server: $server, identifier: $identifier)" >> "$log"
     if ! php "$SCRIPT" \
       --wiki="$wiki_id" \
       --fspath="$fspath" \
-      --urlpath="$URL_PATH" \
+      --urlpath="$urlpath" \
       --compress yes \
       --server="$server" \
       --skip-redirects \
@@ -105,13 +106,19 @@ while true; do
         if [ -z "$wiki_id" ]; then
             continue
         fi
-        # Build server URL from wiki's url field and the configured scheme
+        # The server is the scheme and host only; page URLs already carry
+        # the wiki's path, and the index's links to its sitemaps get it here
+        wiki_path=""
         if [ -n "$wiki_url" ]; then
-            server="${URL_SCHEME}${wiki_url}"
+            server="${URL_SCHEME}${wiki_url%%/*}"
+            if [[ "$wiki_url" == */* ]]; then
+                wiki_path="/${wiki_url#*/}"
+            fi
         else
             server="$MW_SITE_SERVER"
         fi
-        generate_sitemap_for_wiki "$wiki_id" "$identifier" "$server" "$logfileNow"
+        generate_sitemap_for_wiki "$wiki_id" "$identifier" "$server" \
+            "${wiki_path}${URL_PATH}" "$logfileNow"
     done <<< "$wiki_data"
 
     echo "mwsitemapgen waits for $SLEEP_DAYS seconds..." >> "$logfileNow"
