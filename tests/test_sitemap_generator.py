@@ -129,18 +129,66 @@ FARM = [{"id": "de", "url": "example.com/de"},
         {"id": "en", "url": "example.com/en"}]
 
 
-class TestUrlPath:
-    def test_defaults_to_public_assets(self, generator):
+ROOT_WIKI = [{"id": "main", "url": "example.com"}]
+
+
+def index_link(call, filename):
+    """The <loc> generateSitemap.php writes into the index for filename:
+    the server, then --urlpath with a trailing slash, then the file."""
+    urlpath = option(call, "urlpath")
+    if urlpath and not urlpath.endswith("/"):
+        urlpath += "/"
+    if not urlpath.startswith("/"):
+        urlpath = "/" + urlpath
+    return option(call, "server") + urlpath + filename
+
+
+class TestServer:
+    def test_root_wiki(self, generator):
+        generator.opt_in("main")
+        [call] = generator.run(ROOT_WIKI)
+        assert option(call, "server") == "https://example.com"
+        assert option(call, "urlpath") == "/public_assets/sitemap"
+
+    def test_path_wiki_server_is_the_host_only(self, generator):
         generator.opt_in("en")
         [call] = generator.run(FARM)
+        assert option(call, "server") == "https://example.com"
+        assert option(call, "urlpath") == "/en/public_assets/sitemap"
+
+    def test_port_is_kept(self, generator):
+        generator.opt_in("en")
+        [call] = generator.run([{"id": "en", "url": "example.com:8443/en"}])
+        assert option(call, "server") == "https://example.com:8443"
+        assert option(call, "urlpath") == "/en/public_assets/sitemap"
+
+    def test_wiki_without_url_uses_mw_site_server(self, generator):
+        generator.opt_in("main")
+        [call] = generator.run([{"id": "main"}])
+        assert option(call, "server") == "https://example.com"
         assert option(call, "urlpath") == "/public_assets/sitemap"
-        assert option(call, "server") == "https://example.com/en"
+
+    def test_index_links_point_under_the_wiki(self, generator):
+        generator.opt_in("main")
+        generator.opt_in("en")
+        calls = generator.run(ROOT_WIKI + FARM[1:])
+        assert [index_link(c, "sitemap-x-NS_0-0.xml.gz") for c in calls] == [
+            "https://example.com/public_assets/sitemap/sitemap-x-NS_0-0.xml.gz",
+            "https://example.com/en/public_assets/sitemap/sitemap-x-NS_0-0.xml.gz",
+        ]
+
+
+class TestUrlPath:
+    def test_defaults_to_public_assets(self, generator):
+        generator.opt_in("main")
+        [call] = generator.run(ROOT_WIKI)
+        assert option(call, "urlpath") == "/public_assets/sitemap"
 
     def test_comes_from_mw_sitemap_url_path(self, generator):
         generator.opt_in("en")
         [call] = generator.run(
             FARM, env={"MW_SITEMAP_URL_PATH": "/wiki/sitemap"})
-        assert option(call, "urlpath") == "/wiki/sitemap"
+        assert option(call, "urlpath") == "/en/wiki/sitemap"
 
     def test_files_stay_under_the_wiki_id(self, generator):
         generator.opt_in("en")
