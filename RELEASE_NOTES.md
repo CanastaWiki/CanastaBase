@@ -41,3 +41,4 @@ CanastaBase version history:
 - 1.3.26 - October 14, 2026 - Bundled composer list moved into the image, `config/composer.local.json` holding operator additions only, failed startup composer updates recorded (#286)
 - 1.3.27 - October 21, 2026 - PHP 8.2.35 security update via Debian security package refresh (#293); graceful Apache stop (#290); Gerrit submodule user agent (#292)
 - 1.3.28 - October 25, 2026 - Maintenance scripts' `--wiki` server and path (#301); configurable sitemap URL path and identifier (#302); Debian security package refresh (#298)
+- 1.3.29 - October 26, 2026 - Path wiki sitemap URLs (#306); Debian security package refresh (#307)
