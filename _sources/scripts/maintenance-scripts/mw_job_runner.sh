@@ -3,6 +3,16 @@
 RJ=$MW_HOME/maintenance/runJobs.php
 logfileName=mwjobrunner_log
 
+# Bound each general batch by time (0 means no time limit), and also by count
+# when MW_JOB_RUNNER_MAXJOBS is set
+general_limits=()
+if [ -n "$MW_JOB_RUNNER_MAXTIME" ]; then
+    general_limits+=(--maxtime="$MW_JOB_RUNNER_MAXTIME")
+fi
+if [ -n "$MW_JOB_RUNNER_MAXJOBS" ]; then
+    general_limits+=(--maxjobs="$MW_JOB_RUNNER_MAXJOBS")
+fi
+
 echo "Starting job runner (in 10 seconds)..."
 
 # Wait 10 seconds after the server starts up to give other processes time to get started
@@ -38,10 +48,8 @@ if [ -f "$MW_VOLUME/config/wikis.yaml" ]; then
                 sleep 1
                 php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" --type="htmlCacheUpdate" --maxjobs=500 --server="https://$wiki_url" --wiki="$wiki_id" >> "$logfileNow" 2>&1
                 sleep 1
-                # Everything else, limit the number of jobs on each batch
-                # The --wait parameter will pause the execution here until new jobs are added,
-                # to avoid running the loop without anything to do
-                php $RJ --maxjobs=10 --server="https://$wiki_url" --wiki="$wiki_id" >> "$logfileNow" 2>&1
+                # Everything else, limit the length of each batch
+                php $RJ "${general_limits[@]}" --server="https://$wiki_url" --wiki="$wiki_id" >> "$logfileNow" 2>&1
 
                 # Wait some seconds to let the CPU do other things, like handling web requests, etc
                 echo mwjobrunner waits for "$MW_JOB_RUNNER_PAUSE" seconds... >> "$logfileNow"
@@ -61,7 +69,7 @@ else
         sleep 1
         php $RJ --type="htmlCacheUpdate" --maxjobs=500
         sleep 1
-        php $RJ --maxjobs=10
+        php $RJ "${general_limits[@]}"
         # Wait some seconds to let the CPU do other things, like handling web requests, etc
         echo mwjobrunner waits for "$MW_JOB_RUNNER_PAUSE" seconds...
         sleep "$MW_JOB_RUNNER_PAUSE"
