@@ -42,4 +42,4 @@ CanastaBase version history:
 - 1.3.27 - October 21, 2026 - PHP 8.2.35 security update via Debian security package refresh (#293); graceful Apache stop (#290); Gerrit submodule user agent (#292)
 - 1.3.28 - October 25, 2026 - Maintenance scripts' `--wiki` server and path (#301); configurable sitemap URL path and identifier (#302); Debian security package refresh (#298)
 - 1.3.29 - October 26, 2026 - Path wiki sitemap URLs (#306); Debian security package refresh (#307)
-- 1.3.30 - October 28, 2026 - Time-bounded job runner batches, `MW_JOB_RUNNER_MAXTIME` and `MW_JOB_RUNNER_MAXJOBS` (#314)
+- 1.3.30 - October 28, 2026 - Time-bounded job runner batches via new settings `MW_JOB_RUNNER_MAXTIME` and `MW_JOB_RUNNER_MAXJOBS` (#314)
