@@ -3,7 +3,8 @@
 RJ=$MW_HOME/maintenance/runJobs.php
 logfileName=mwjobrunner_log
 
-# Bound each general batch by time, and also by count when MW_JOB_RUNNER_MAXJOBS is set
+# Bound each general batch by time (0 means no time limit), and also by count
+# when MW_JOB_RUNNER_MAXJOBS is set
 general_limits=()
 if [ -n "$MW_JOB_RUNNER_MAXTIME" ]; then
     general_limits+=(--maxtime="$MW_JOB_RUNNER_MAXTIME")

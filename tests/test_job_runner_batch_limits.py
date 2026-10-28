@@ -1,5 +1,6 @@
 """The general job batch in mw_job_runner.sh is bounded by
-MW_JOB_RUNNER_MAXTIME, and also by MW_JOB_RUNNER_MAXJOBS when it is set."""
+MW_JOB_RUNNER_MAXTIME, and also by MW_JOB_RUNNER_MAXJOBS when it is set.
+runJobs.php reads --maxtime=0 as no time limit."""
 
 import os
 import subprocess
@@ -44,6 +45,7 @@ def _general_batch_args(tmp_path, maxtime, maxjobs):
 @pytest.mark.parametrize("maxtime,maxjobs,expected", [
     ("60", "", ["--maxtime=60"]),
     ("30", "500", ["--maxtime=30", "--maxjobs=500"]),
+    ("0", "10", ["--maxtime=0", "--maxjobs=10"]),
     ("", "10", ["--maxjobs=10"]),
 ])
 def test_general_batch_limits(tmp_path, maxtime, maxjobs, expected):
