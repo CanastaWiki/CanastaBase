@@ -1,6 +1,7 @@
 """The general job batch in mw_job_runner.sh is bounded by
 MW_JOB_RUNNER_MAXTIME, and also by MW_JOB_RUNNER_MAXJOBS when it is set.
-runJobs.php reads --maxtime=0 as no time limit."""
+runJobs.php reads --maxtime=0 as no time limit. Every runJobs.php call runs
+under MW_JOB_RUNNER_MEMORY_LIMIT; without --memory-limit it uses 150M."""
 
 import os
 import subprocess
@@ -15,8 +16,12 @@ SCRIPT = os.path.join(
 )
 
 
-def _general_batch_args(tmp_path, maxtime, maxjobs):
+def _php_calls(tmp_path, maxtime="60", maxjobs="", farm=False):
     calls = tmp_path / "php_calls"
+    if farm:
+        config = tmp_path / "mediawiki" / "config"
+        config.mkdir(parents=True)
+        (config / "wikis.yaml").write_text("wikis: []\n")
     env = os.environ.copy()
     env.update({
         "MW_HOME": "/mw",
@@ -24,10 +29,15 @@ def _general_batch_args(tmp_path, maxtime, maxjobs):
         "MW_JOB_RUNNER_PAUSE": "stop",
         "MW_JOB_RUNNER_MAXTIME": maxtime,
         "MW_JOB_RUNNER_MAXJOBS": maxjobs,
+        "MW_JOB_RUNNER_MEMORY_LIMIT": "512M",
+        "MW_LOG": str(tmp_path),
         "CALLS": str(calls),
     })
     wrapper = textwrap.dedent("""
-        php() { echo "$*" >> "$CALLS"; }
+        php() {
+            [ "$1" = -r ] && { echo "main,wiki.example.com "; return; }
+            echo "$*" >> "$CALLS"
+        }
         sleep() { [ "$1" = stop ] && exit 0; :; }
         export -f php sleep
         bash %s
@@ -37,7 +47,11 @@ def _general_batch_args(tmp_path, maxtime, maxjobs):
         timeout=30,
     )
     assert result.returncode == 0, result.stderr
-    general = [c for c in calls.read_text().splitlines() if "--type=" not in c]
+    return calls.read_text().splitlines()
+
+
+def _general_batch_args(tmp_path, maxtime, maxjobs):
+    general = [c for c in _php_calls(tmp_path, maxtime, maxjobs) if "--type=" not in c]
     assert len(general) == 1, general
     return general[0].split()[1:]
 
@@ -49,7 +63,15 @@ def _general_batch_args(tmp_path, maxtime, maxjobs):
     ("", "10", ["--maxjobs=10"]),
 ])
 def test_general_batch_limits(tmp_path, maxtime, maxjobs, expected):
-    assert _general_batch_args(tmp_path, maxtime, maxjobs) == expected
+    assert _general_batch_args(tmp_path, maxtime, maxjobs) == ["--memory-limit=512M"] + expected
+
+
+@pytest.mark.parametrize("farm", [False, True])
+def test_every_run_uses_the_memory_limit(tmp_path, farm):
+    calls = _php_calls(tmp_path, farm=farm)
+    assert len(calls) == 5, calls
+    for call in calls:
+        assert "--memory-limit=512M" in call.split(), call
 
 
 def test_dockerfile_defaults_bound_batch_by_time():

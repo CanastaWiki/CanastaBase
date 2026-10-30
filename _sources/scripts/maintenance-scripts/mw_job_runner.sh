@@ -49,7 +49,7 @@ if [ -f "$MW_VOLUME/config/wikis.yaml" ]; then
                 php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" --type="htmlCacheUpdate" --maxjobs=500 --server="https://$wiki_url" --wiki="$wiki_id" >> "$logfileNow" 2>&1
                 sleep 1
                 # Everything else, limit the length of each batch
-                php $RJ "${general_limits[@]}" --server="https://$wiki_url" --wiki="$wiki_id" >> "$logfileNow" 2>&1
+                php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" "${general_limits[@]}" --server="https://$wiki_url" --wiki="$wiki_id" >> "$logfileNow" 2>&1
 
                 # Wait some seconds to let the CPU do other things, like handling web requests, etc
                 echo mwjobrunner waits for "$MW_JOB_RUNNER_PAUSE" seconds... >> "$logfileNow"
@@ -61,15 +61,15 @@ else
     # wikis.yaml file does not exist. Skip parsing and running specific wiki jobs.
     # Place your general (non-wiki-specific) job run commands here.
     while true; do
-        php $RJ --type="enotifNotify"
+        php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" --type="enotifNotify"
         sleep 1
-        php $RJ --type="createPage"
+        php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" --type="createPage"
         sleep 1
-        php $RJ --type="refreshLinks"
+        php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" --type="refreshLinks"
         sleep 1
-        php $RJ --type="htmlCacheUpdate" --maxjobs=500
+        php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" --type="htmlCacheUpdate" --maxjobs=500
         sleep 1
-        php $RJ "${general_limits[@]}"
+        php $RJ --memory-limit="$MW_JOB_RUNNER_MEMORY_LIMIT" "${general_limits[@]}"
         # Wait some seconds to let the CPU do other things, like handling web requests, etc
         echo mwjobrunner waits for "$MW_JOB_RUNNER_PAUSE" seconds...
         sleep "$MW_JOB_RUNNER_PAUSE"
