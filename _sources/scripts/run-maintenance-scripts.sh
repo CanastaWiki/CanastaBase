@@ -194,6 +194,30 @@ run_autoupdate () {
     echo >&2 "Auto-update completed"
 }
 
+# Sessions are stored in the canasta_sessions table (CanastaDefaultSettings.php),
+# so every wiki needs it whether or not update.php ran.
+create_sessions_tables () {
+    local wiki_ids wiki_id
+    waitdatabase || return $?
+    wiki_ids=$(get_wiki_ids)
+    if [ -z "$wiki_ids" ]; then
+        create_sessions_table ""
+        return 0
+    fi
+    while IFS= read -r wiki_id; do
+        [ -n "$wiki_id" ] && create_sessions_table "$wiki_id"
+    done <<< "$wiki_ids"
+    return 0
+}
+
+create_sessions_table () {
+    if [ -n "$1" ] && wiki_database_missing "$1"; then
+        return 0
+    fi
+    runuser -c "php maintenance/createSessionsTable.php${1:+ --wiki=$1}" -s /bin/bash "$WWW_USER" ||
+        echo >&2 "Could not create the sessions table${1:+ for wiki: $1}"
+}
+
 run_maintenance_scripts() {
   # Iterate through all the .sh files in /maintenance-scripts/ directory
   for maintenance_script in $(find /maintenance-scripts/ -maxdepth 1 -mindepth 1 -type f -name "*.sh" | sort); do
