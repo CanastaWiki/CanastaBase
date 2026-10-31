@@ -134,6 +134,7 @@ if [ -n "$MW_SECRET_KEY" ] || [ -e "$MW_VOLUME/config/LocalSettings.php" ] || [ 
   else
     echo "Auto update script is disabled, MW_AUTOUPDATE is $MW_AUTOUPDATE"
   fi
+  create_sessions_tables
 
   # Notify if SMW was newly set up and needs rebuildData.
   # setupStore.php (run by update.php hooks) creates tables but does not
