@@ -67,8 +67,8 @@ def test_missing_database_is_skipped_not_failed(tmp_path):
     result, ran, _, persistent = _run(tmp_path, "alpha\nbeta\ngamma\n", MISSING_BETA)
     assert result.returncode == 0, result.stderr
     assert ran == [
-        "RAN php maintenance/update.php --quick --wiki=alpha",
-        "RAN php maintenance/update.php --quick --wiki=gamma",
+        "RAN php maintenance/update.php --quick --nopurge --wiki=alpha",
+        "RAN php maintenance/update.php --quick --nopurge --wiki=gamma",
     ]
     assert "beta: database not installed yet, skipping update" in result.stderr
     assert "Auto-update completed\n" in result.stderr
@@ -88,14 +88,14 @@ def test_connection_failure_still_runs_update(tmp_path):
         "return 1;"
     )
     result, ran, _, _ = _run(tmp_path, "alpha\n", unreachable)
-    assert ran == ["RAN php maintenance/update.php --quick --wiki=alpha"]
+    assert ran == ["RAN php maintenance/update.php --quick --nopurge --wiki=alpha"]
     assert "not installed yet" not in result.stderr
 
 
 def test_non_mysql_database_is_not_checked(tmp_path):
     result, ran, calls, _ = _run(tmp_path, "alpha\n", MISSING_BETA, db_type="sqlite")
     assert calls == []
-    assert ran == ["RAN php maintenance/update.php --quick --wiki=alpha"]
+    assert ran == ["RAN php maintenance/update.php --quick --nopurge --wiki=alpha"]
 
 
 def test_current_fingerprint_skips_the_check(tmp_path):
