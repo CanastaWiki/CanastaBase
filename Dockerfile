@@ -228,7 +228,7 @@ COPY _sources/scripts/extensions-skins.php /tmp/
 COPY _sources/configs/robots-main.txt _sources/configs/robots.php _sources/configs/sitemap.php _sources/configs/canasta-sitemaps.php $WWW_ROOT/
 COPY _sources/configs/.htaccess $WWW_ROOT/
 COPY _sources/images/favicon.ico $WWW_ROOT/
-COPY _sources/canasta/LocalSettings.php _sources/canasta/CanastaDefaultSettings.php _sources/canasta/FarmConfigLoader.php _sources/canasta/CanastaFarm404.php $MW_HOME/
+COPY _sources/canasta/LocalSettings.php _sources/canasta/CanastaDefaultSettings.php _sources/canasta/canasta_sessions.sql _sources/canasta/FarmConfigLoader.php _sources/canasta/CanastaFarm404.php $MW_HOME/
 COPY _sources/canasta/getMediawikiSettings.php /
 COPY _sources/configs/mpm_event.conf /etc/apache2/mods-available/mpm_event.conf
 

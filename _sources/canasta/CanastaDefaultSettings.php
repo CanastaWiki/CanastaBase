@@ -123,8 +123,20 @@ if ( isEnvTrue( 'CANASTA_ENABLE_REDIS' ) ) {
 $wgMemCachedServers = [];
 
 # Sessions in the database survive web container restarts, and are shared
-# between web replicas.
-$wgSessionCacheType = CACHE_DB;
+# between web replicas. They get their own table because update.php empties
+# objectcache, which would log every user out. The table is created at
+# container start (run-maintenance-scripts.sh) and by update.php.
+$wgObjectCaches['canasta-sessions'] = [
+	'class' => SqlBagOStuff::class,
+	'loggroup' => 'SQLBagOStuff',
+	'tableName' => 'canasta_sessions',
+];
+$wgSessionCacheType = 'canasta-sessions';
+$wgHooks['LoadExtensionSchemaUpdates'][] = static function ( $updater ) {
+	if ( $updater->getDB()->getType() === 'mysql' ) {
+		$updater->addExtensionTable( 'canasta_sessions', __DIR__ . '/canasta_sessions.sql' );
+	}
+};
 
 # Varnish cache configuration (enabled by default for backward compatibility;
 # set CANASTA_ENABLE_VARNISH=false to disable)
