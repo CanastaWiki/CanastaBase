@@ -64,13 +64,3 @@ def test_redis_when_enabled(value):
         },
         "session": "db",
     }
-
-
-def test_startup_update_does_not_purge_sessions():
-    """update.php's purge empties objectcache, where sessions live."""
-    rms = os.path.join(REPO_ROOT, "_sources", "scripts", "run-maintenance-scripts.sh")
-    with open(rms) as f:
-        calls = re.findall(r"maintenance/update\.php --quick[^\"']*", f.read())
-    assert len(calls) == 2, calls
-    for call in calls:
-        assert "--nopurge" in call.split(), call

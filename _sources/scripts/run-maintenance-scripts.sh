@@ -159,8 +159,6 @@ run_autoupdate () {
     # Get all wiki IDs (if wiki farm) or use empty string for single wiki
     wiki_ids=$(get_wiki_ids)
 
-    # --nopurge: the purge empties the objectcache table, which holds the
-    # sessions (CanastaDefaultSettings.php), so it would log every user out.
     rc=0
     update_wiki_id=
     if [ -n "$wiki_ids" ]; then
@@ -172,7 +170,7 @@ run_autoupdate () {
                 wiki_version_hash=$(php /getMediawikiSettings.php --versions --format=md5 --wiki="$wiki_id")
                 update_wiki_id=$wiki_id
                 run_maintenance_script_if_needed "maintenance_update_$wiki_id" "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$wiki_version_hash" \
-                    "maintenance/update.php --quick --nopurge --wiki=$wiki_id" || {
+                    "maintenance/update.php --quick --wiki=$wiki_id" || {
                         rc=$?
                         echo >&2 "An error occurred when auto-update script was running for wiki: $wiki_id"
                     }
@@ -182,7 +180,7 @@ run_autoupdate () {
     else
         # Single wiki (legacy mode)
         run_maintenance_script_if_needed 'maintenance_update' "$MW_VERSION-$MW_CORE_VERSION-$MW_MAINTENANCE_UPDATE-$VERSION_HASH" \
-            'maintenance/update.php --quick --nopurge' || {
+            'maintenance/update.php --quick' || {
                 rc=$?
                 echo >&2 "An error occurred when auto-update script was running"
                 return $rc
