@@ -108,9 +108,23 @@ $wgDBTableOptions = "ENGINE=InnoDB, DEFAULT CHARSET=binary";
 # Semantic MediaWiki: store smw.json on the persistent volume
 $smwgConfigFileDir = getenv( 'MW_VOLUME' ) . '/config/persistent';
 
-# Cache (Canasta uses APCu)
-$wgMainCacheType = CACHE_ACCEL;
+# Main cache: APCu, or Redis when the instance runs one. APCu is private to
+# each PHP process, so maintenance scripts cannot purge the web server's copy;
+# a Redis the web server and scripts share can be purged.
+if ( isEnvTrue( 'CANASTA_ENABLE_REDIS' ) ) {
+	$wgObjectCaches['redis'] = [
+		'class' => \Wikimedia\ObjectCache\RedisBagOStuff::class,
+		'servers' => [ 'redis:6379' ],
+	];
+	$wgMainCacheType = 'redis';
+} else {
+	$wgMainCacheType = CACHE_ACCEL;
+}
 $wgMemCachedServers = [];
+
+# Sessions in the database survive web container restarts, and are shared
+# between web replicas.
+$wgSessionCacheType = CACHE_DB;
 
 # Varnish cache configuration (enabled by default for backward compatibility;
 # set CANASTA_ENABLE_VARNISH=false to disable)
